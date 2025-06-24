@@ -1,0 +1,40 @@
+- name: {{hosted:id}}-core-node
+  amiType: bottlerocket_x86_64
+  forceUpdate: true
+  instanceClass: m5a
+  instanceSize: large
+  capacityType: on_demand
+  desiredSize: 2
+  minSize: 2
+  maxSize: 6
+  role:
+    name: {{hosted:id}}-core-node
+    principal:
+      type: service
+      value: ec2.amazonaws.com
+    managedPolicyNames:
+      - AmazonEKSWorkerNodePolicy
+      - AmazonEC2ContainerRegistryReadOnly
+      - AmazonSSMManagedInstanceCore
+    customPolicies: [ ]
+    tags:
+      "{{hosted:domain}}:resource-type": role
+      "{{hosted:domain}}:category": compute
+      "{{hosted:domain}}:type": core-node
+      "{{hosted:domain}}:component": {{hosted:id}}-eks
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+  labels:
+    "{{hosted:domain}}/resource-type": node
+    "{{hosted:domain}}/category": compute
+    "{{hosted:domain}}/type": core-node
+    "{{hosted:domain}}/component": eks
+    "{{hosted:domain}}/part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+    "karpenter.sh/discovery": {{hosted:id}}-vpc
+  tags:
+    "{{hosted:domain}}:resource-type": node
+    "{{hosted:domain}}:category": compute
+    "{{hosted:domain}}:type": core-node
+    "{{hosted:domain}}:component": {{hosted:id}}-eks
+    "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+    "eks.amazonaws.com/nodegroup": {{hosted:id}}-core-node
+    "karpenter.sh/discovery": {{hosted:id}}-vpc

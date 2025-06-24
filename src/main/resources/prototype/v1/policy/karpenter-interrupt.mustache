@@ -1,0 +1,15 @@
+[
+  {
+    "Effect": "Allow",
+    "Action": [
+      "sqs:DeleteMessage",
+      "sqs:GetQueueUrl",
+      "sqs:ReceiveMessage"
+    ],
+    "Resource": [
+      {{#resources}}
+        "{{.}}",
+      {{/resources}}
+    ]
+  }
+]

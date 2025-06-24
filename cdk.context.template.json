@@ -1,0 +1,53 @@
+{
+  "host:id": "xyz",
+  "host:organization": "stxkxs",
+  "host:account": "000000000000",
+  "host:region": "us-west-2",
+  "host:name": "vanilla",
+  "host:alias": "eks",
+  "host:environment": "prototype",
+  "host:version": "v1",
+  "host:domain": "stxkxs.io",
+  "hosted:id": "fff",
+  "hosted:organization": "data",
+  "hosted:account": "000000000000",
+  "hosted:region": "us-west-2",
+  "hosted:name": "data",
+  "hosted:alias": "analytics",
+  "hosted:environment": "prototype",
+  "hosted:version": "v1",
+  "hosted:domain": "data.stxkxs.io",
+
+  "hosted:eks:grafana:instanceId":"000000",
+  "hosted:eks:grafana:key":"glc_xyz",
+  "hosted:eks:grafana:lokiHost":"https://logs-prod-000.grafana.net",
+  "hosted:eks:grafana:lokiUsername":"000000",
+  "hosted:eks:grafana:prometheusHost":"https://prometheus-prod-000-prod-us-west-0.grafana.net",
+  "hosted:eks:grafana:prometheusUsername":"0000000",
+  "hosted:eks:grafana:tempoHost":"https://tempo-prod-000-prod-us-west-0.grafana.net/tempo",
+  "hosted:eks:grafana:tempoUsername":"000000",
+  "hosted:eks:grafana:pyroscopeHost":"https://profiles-prod-000.grafana.net:443",
+  "hosted:eks:grafana:fleetManagementHost":"https://fleet-management-prod-000.grafana.net",
+
+  "hosted:eks:druid:release":  "streaming",
+
+  "hosted:eks:administrators": [
+    {
+      "username": "administrator001",
+      "role": "arn:aws:iam::000000000000:role/AWSReservedSSO_AdministratorAccess_abc",
+      "email": "user@aol.com"
+    }
+  ],
+  "hosted:eks:users": [],
+  "hosted:tags": [],
+  "availability-zones:account=000000000000:region=us-west-2": [
+    "us-west-2a",
+    "us-west-2b",
+    "us-west-2c",
+    "us-west-2d"
+  ],
+  "acknowledged-issue-numbers": [
+    32775,
+    32775
+  ]
+}

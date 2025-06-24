@@ -1,0 +1,29 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: {{ include "druid.name" . }}-druid-coordinator-nodepool
+  labels:
+    {{- include "coordinator.labels" . | indent 4 }}
+  annotations:
+    {{- include "coordinator.annotations" . | indent 4 }}
+spec:
+  limits:
+    {{- toYaml .Values.coordinator.node.limits | nindent 4 }}
+  disruption:
+    {{- toYaml .Values.coordinator.node.disruption | nindent 4 }}
+  template:
+    metadata:
+      labels:
+        {{- include "druid.node.labels" . | nindent 8 }}
+        eks.amazonaws.com/nodegroup: {{ include "druid.name" . }}-druid-coordinator-node
+    spec:
+      requirements:
+        - key: "eks.amazonaws.com/nodegroup"
+          operator: In
+          values: [ "{{ include "druid.name" . }}-druid-coordinator-node" ]
+        {{- include "druid.node.requirements" . | nindent 8 }}
+        {{- toYaml .Values.coordinator.node.requirements | nindent 8 }}
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: {{ include "druid.name" . }}-druid-nodeclass

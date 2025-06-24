@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "druid.name" . }}-druid-historical
+  labels:
+    {{- include "historical.labels" . | indent 4 }}
+  annotations:
+    {{- include "historical.annotations" . | indent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: historical
+      port: 8283
+    - name: prometheus
+      port: 9000
+  selector:
+    {{- include "historical.labels" . | indent 4 }}
+    {{- include "historical.match.labels" . | nindent 4 }}

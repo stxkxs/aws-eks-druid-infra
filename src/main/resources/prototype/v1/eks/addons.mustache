@@ -1,0 +1,220 @@
+managed:
+  # https://docs.aws.amazon.com/eks/latest/userguide/eks-add-ons.html#workloads-add-ons-available-eks
+  awsVpcCni:
+    name: vpc-cni
+    version: v1.19.6-eksbuild.1
+    preserveOnDelete: false
+    resolveConflicts: preserve
+    serviceAccount:
+      metadata:
+        name: aws-node
+        namespace: kube-system
+        labels:
+          "{{hosted:domain}}/resource-type": service-account
+          "{{hosted:domain}}/category": network
+          "{{hosted:domain}}/type": operations
+          "{{hosted:domain}}/component": aws-vpc-cni.aws-node
+          "{{hosted:domain}}/part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+        annotations: { }
+      role:
+        name: {{hosted:id}}-vpc-cni
+        managedPolicyNames:
+          - AmazonEKS_CNI_Policy
+        customPolicies: [ ]
+        tags:
+          "{{hosted:domain}}:resource-type": role
+          "{{hosted:domain}}:category": network
+          "{{hosted:domain}}:type": operations
+          "{{hosted:domain}}:component": {{hosted:id}}-aws-vpc-cni.aws-node
+          "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+  awsEbsCsi:
+    name: aws-ebs-csi-driver
+    version: v1.44.0-eksbuild.1
+    preserveOnDelete: false
+    resolveConflicts: preserve
+    serviceAccount:
+      metadata:
+        name: ebs-csi-controller-sa
+        namespace: kube-system
+        labels:
+          "{{hosted:domain}}/resource-type": service-account
+          "{{hosted:domain}}/category": storage
+          "{{hosted:domain}}/type": operations
+          "{{hosted:domain}}/component": aws-ebs-cni
+          "{{hosted:domain}}/part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+        annotations: { }
+      role:
+        name: {{hosted:id}}-aws-ebs-csi-sa
+        managedPolicyNames:
+          - service-role/AmazonEBSCSIDriverPolicy
+        customPolicies:
+          - name: {{hosted:id}}-eks-ebs-encryption
+            policy: policy/kms-eks-ebs-encryption.mustache
+            mappings:
+              account: {{hosted:account}}
+              alias: alias/{{hosted:id}}-eks-ebs-encryption
+        tags:
+          "{{hosted:domain}}:resource-type": role
+          "{{hosted:domain}}:category": storage
+          "{{hosted:domain}}:type": operations
+          "{{hosted:domain}}:component": {{hosted:id}}-aws-ebs-cni
+          "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+    defaultStorageClass: eks/storage-class.yaml
+    kms:
+      alias: {{hosted:id}}-eks-ebs-encryption
+      description: "eks ebs csi volume encryption"
+      enabled: true
+      enableKeyRotation: false
+      keyUsage: encrypt_decrypt
+      keySpec: symmetric_default
+      removalPolicy: destroy
+  kubeProxy:
+    name: kube-proxy
+    version: v1.33.0-eksbuild.2
+    preserveOnDelete: false
+    resolveConflicts: overwrite
+  coreDns:
+    name: coredns
+    version: v1.12.1-eksbuild.2
+    preserveOnDelete: false
+    resolveConflicts: overwrite
+  podIdentityAgent:
+    name: eks-pod-identity-agent
+    version: v1.3.7-eksbuild.2
+    preserveOnDelete: false
+    resolveConflicts: overwrite
+  containerInsights:
+    name: amazon-cloudwatch-observability
+    version: v4.1.0-eksbuild.1
+    preserveOnDelete: false
+    resolveConflicts: overwrite
+    serviceAccount:
+      metadata:
+        name: cloudwatch-agent
+        namespace: amazon-cloudwatch
+        labels:
+          "{{hosted:domain}}/resource-type": service-account
+          "{{hosted:domain}}/category": monitoring
+          "{{hosted:domain}}/type": operations
+          "{{hosted:domain}}/component": amazon-cloudwatch-observability
+          "{{hosted:domain}}/part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+        annotations: { }
+      role:
+        name: {{hosted:id}}-cloudwatch-agent-sa
+        managedPolicyNames:
+          - CloudWatchAgentServerPolicy
+          - AWSXrayWriteOnlyAccess
+        customPolicies: []
+        tags:
+          "{{hosted:domain}}:resource-type": role
+          "{{hosted:domain}}:category": monitoring
+          "{{hosted:domain}}:type": operations
+          "{{hosted:domain}}:component": {{hosted:id}}-cloudwatch-agent
+          "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+certManager:
+  chart:
+    name: cert-manager
+    repository: https://charts.jetstack.io
+    release: cert-manager
+    version: v1.17.1
+    namespace: cert-manager
+    values: helm/cert-manager.mustache
+csiSecretsStore:
+  chart:
+    name: secrets-store-csi-driver
+    repository: https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
+    release: csi-secrets
+    version: 1.4.8
+    namespace: aws-secrets-store
+    values: helm/csi-secrets-store.mustache
+awsSecretsStore:
+  chart:
+    name: secrets-store-csi-driver-provider-aws
+    repository: https://aws.github.io/secrets-store-csi-driver-provider-aws
+    release: aws-secrets
+    version: 1.0.1
+    namespace: aws-secrets-store
+    values: helm/aws-secrets-provider.yaml
+karpenter:
+  chart:
+    name: karpenter
+    repository: oci://public.ecr.aws/karpenter/karpenter
+    release: karpenter
+    version: 1.5.0
+    namespace: kube-system
+    values: helm/karpenter.mustache
+  podIdentity:
+    metadata:
+      name: {{hosted:id}}-karpenter-sa
+      namespace: kube-system
+      labels:
+        "{{hosted:domain}}/resource-type": service-account
+        "{{hosted:domain}}/category": operations
+        "{{hosted:domain}}/type": autoscale
+        "{{hosted:domain}}/component": karpenter
+        "{{hosted:domain}}/part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+      annotations: { }
+    role:
+      name: {{hosted:id}}-karpenter-sa
+      principal:
+        type: service
+        value: pods.eks.amazonaws.com
+      managedPolicyNames: [ ]
+      customPolicies:
+        - name: {{hosted:id}}-karpenter
+          policy: policy/karpenter.mustache
+          mappings:
+            queue: {{hosted:id}}-eks
+            cluster: {{hosted:id}}-eks
+            nodeRole: arn:aws:iam::{{hosted:account}}:role/{{hosted:id}}-core-node
+        - name: {{hosted:id}}-karpenter-interrupt
+          policy: policy/karpenter-interrupt.mustache
+          mappings:
+            resources:
+              - arn:aws:sqs:{{hosted:region}}:{{hosted:account}}:{{hosted:id}}-karpenter
+      tags:
+        "{{hosted:domain}}:resource-type": pod-identity
+        "{{hosted:domain}}:category": karpenter
+        "{{hosted:domain}}:type": operations
+        "{{hosted:domain}}:component": {{hosted:id}}-eks
+        "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+awsLoadBalancer:
+  chart:
+    name: aws-load-balancer-controller
+    repository: https://aws.github.io/eks-charts
+    release: aws-load-balancer-controller
+    version: 1.11.0
+    namespace: aws-load-balancer
+    values: helm/aws-load-balancer.mustache
+  serviceAccount:
+    metadata:
+      name: {{hosted:id}}-aws-load-balancer-sa
+      namespace: aws-load-balancer
+      labels:
+        "{{hosted:domain}}/resource-type": service-account
+        "{{hosted:domain}}/category": ingress
+        "{{hosted:domain}}/type": operations
+        "{{hosted:domain}}/component": aws-load-balancer
+        "{{hosted:domain}}/part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+      annotations: { }
+    role:
+      name: {{hosted:id}}-aws-load-balancer-sa
+      managedPolicyNames: [ ]
+      customPolicies:
+        - name: {{hosted:id}}-aws-load-balancer-controller
+          policy: policy/aws-load-balancer-controller.mustache
+          mappings: { }
+      tags:
+        "{{hosted:domain}}:resource-type": role
+        "{{hosted:domain}}:category": ingress
+        "{{hosted:domain}}:type": operations
+        "{{hosted:domain}}:component": {{hosted:id}}-aws-load-balancer
+        "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+grafana:
+  chart:
+    name: k8s-monitoring
+    repository: https://grafana.github.io/helm-charts
+    release: k8s-monitoring
+    version: 2.0.18
+    namespace: monitoring
+    values: helm/grafana.mustache

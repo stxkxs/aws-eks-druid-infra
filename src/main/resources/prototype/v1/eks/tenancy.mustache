@@ -1,0 +1,23 @@
+administrators:
+{{#hosted:eks:administrators}}
+  {{#role}}
+      - role: {{role}}
+        username: {{username}}
+        email: {{email}}
+  {{/role}}
+{{/hosted:eks:administrators}}
+{{^hosted:eks:administrators}}
+  [ ]
+{{/hosted:eks:administrators}}
+
+users:
+{{#hosted:eks:users}}
+  {{#role}}
+      - role: {{role}}
+        username: {{username}}
+        email: {{email}}
+  {{/role}}
+{{/hosted:eks:users}}
+{{^hosted:eks:users}}
+  [ ]
+{{/hosted:eks:users}}

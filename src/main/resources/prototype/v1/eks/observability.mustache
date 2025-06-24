@@ -1,0 +1,1458 @@
+
+---
+topics:
+  eks-critical-alarms:
+    - ops-team@example.com
+    - sre-oncall@example.com
+  eks-warning-alarms:
+    - dev-team@example.com
+
+metrics:
+  - filterName: KubeAPIServerErrors
+    logGroupName: /aws/eks/{{hosted:id}}-eks/cluster
+    filterPattern: '{$.level = "error" && $.component = "apiserver"}'
+    metricNamespace: eks/cluster/{{hosted:id}}-eks
+    metricName: APIServerErrorCount
+    metricValue: "1"
+    defaultValue: 0.0
+
+  - filterName: PodCrashLoopBackOff
+    logGroupName: /aws/eks/{{hosted:id}}-eks/cluster
+    filterPattern: '{$.reason = "CrashLoopBackOff"}'
+    metricNamespace: eks/cluster/{{hosted:id}}-eks
+    metricName: PodCrashLoopBackOffCount
+    metricValue: "1"
+    defaultValue: 0.0
+
+  - filterName: NodeNotReady
+    logGroupName: /aws/eks/{{hosted:id}}-eks/cluster
+    filterPattern: '{$.kind = "Node" && $.reason = "NotReady"}'
+    metricNamespace: eks/cluster/{{hosted:id}}-eks
+    metricName: NodeNotReadyCount
+    metricValue: "1"
+    defaultValue: 0.0
+
+  - filterName: PodFailures
+    logGroupName: /aws/eks/{{hosted:id}}-eks/cluster
+    filterPattern: '{$.kind = "Pod" && $.status.phase = "Failed"}'
+    metricNamespace: eks/cluster/{{hosted:id}}-eks
+    metricName: PodFailureCount
+    metricValue: "1"
+    defaultValue: 0.0
+
+  - filterName: AuthenticationFailures
+    logGroupName: /aws/eks/{{hosted:id}}-eks/cluster
+    filterPattern: '{$.component = "apiserver" && $.verb = "authenticate" && $.status.code >= 400}'
+    metricNamespace: eks/cluster/{{hosted:id}}-eks
+    metricName: AuthenticationFailureCount
+    metricValue: "1"
+    defaultValue: 0.0
+
+alarms:
+  - name: {{hosted:id}}-eks-apiservererrorcount-critical
+    description: "critical: high number of api server errors detected"
+    metricNamespace: eks/cluster/{{hosted:id}}-eks
+    metricName: APIServerErrorCount
+    statistic: Sum
+    dimensions:
+      ClusterName: {{hosted:id}}-eks
+    periodMinutes: 5
+    evaluationPeriods: 3
+    threshold: 10.0
+    comparisonOperator: GREATER_THAN_THRESHOLD
+    treatMissingData: NOT_BREACHING
+    alarmActions:
+      - eks-critical-alarms
+    tags:
+      "{{hosted:domain}}:severity": critical
+      "{{hosted:domain}}:billing": {{hosted:organization}}
+      "{{hosted:domain}}:managed-by": {{hosted:organization}}
+      "{{hosted:domain}}:account": {{hosted:account}}
+      "{{hosted:domain}}:region": {{hosted:region}}
+      "{{hosted:domain}}:name": {{hosted:name}}
+      "{{hosted:domain}}:alias": {{hosted:alias}}
+      "{{hosted:domain}}:environment": {{hosted:environment}}
+      "{{hosted:domain}}:version": {{hosted:version}}
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}.eks"
+      {{#hosted:tags}}
+      "{{key}}": "{{value}}"
+      {{/hosted:tags}}
+
+  - name: {{hosted:id}}-eks-podcrashloopbackoff-warning
+    description: "warning: pods are in crashloopbackoff state"
+    metricNamespace: eks/cluster/{{hosted:id}}-eks
+    metricName: PodCrashLoopBackOffCount
+    statistic: Sum
+    dimensions:
+      ClusterName: {{hosted:id}}-eks
+    periodMinutes: 5
+    evaluationPeriods: 3
+    threshold: 5.0
+    comparisonOperator: GREATER_THAN_THRESHOLD
+    treatMissingData: NOT_BREACHING
+    alarmActions:
+      - eks-warning-alarms
+    tags:
+      "{{hosted:domain}}:severity": warning
+      "{{hosted:domain}}:billing": {{hosted:organization}}
+      "{{hosted:domain}}:managed-by": {{hosted:organization}}
+      "{{hosted:domain}}:account": {{hosted:account}}
+      "{{hosted:domain}}:region": {{hosted:region}}
+      "{{hosted:domain}}:name": {{hosted:name}}
+      "{{hosted:domain}}:alias": {{hosted:alias}}
+      "{{hosted:domain}}:environment": {{hosted:environment}}
+      "{{hosted:domain}}:version": {{hosted:version}}
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}.eks"
+      {{#hosted:tags}}
+      "{{key}}": "{{value}}"
+      {{/hosted:tags}}
+
+  - name: {{hosted:id}}-eks-nodenotready-critical
+    description: "critical: nodes are in notready state"
+    metricNamespace: eks/cluster/{{hosted:id}}-eks
+    metricName: NodeNotReadyCount
+    statistic: Sum
+    dimensions:
+      ClusterName: {{hosted:id}}-eks
+    periodMinutes: 5
+    evaluationPeriods: 2
+    threshold: 1.0
+    comparisonOperator: GREATER_THAN_OR_EQUAL_TO_THRESHOLD
+    treatMissingData: NOT_BREACHING
+    alarmActions:
+      - eks-critical-alarms
+    tags:
+      "{{hosted:domain}}:severity": critical
+      "{{hosted:domain}}:billing": {{hosted:organization}}
+      "{{hosted:domain}}:managed-by": {{hosted:organization}}
+      "{{hosted:domain}}:account": {{hosted:account}}
+      "{{hosted:domain}}:region": {{hosted:region}}
+      "{{hosted:domain}}:name": {{hosted:name}}
+      "{{hosted:domain}}:alias": {{hosted:alias}}
+      "{{hosted:domain}}:environment": {{hosted:environment}}
+      "{{hosted:domain}}:version": {{hosted:version}}
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}.eks"
+      {{#hosted:tags}}
+      "{{key}}": "{{value}}"
+      {{/hosted:tags}}
+
+  - name: {{hosted:id}}-eks-podfailure-warning
+    description: "warning: pods are failing"
+    metricNamespace: eks/cluster/{{hosted:id}}-eks
+    metricName: PodFailureCount
+    statistic: Sum
+    dimensions:
+      ClusterName: {{hosted:id}}-eks
+    periodMinutes: 5
+    evaluationPeriods: 3
+    threshold: 3.0
+    comparisonOperator: GREATER_THAN_THRESHOLD
+    treatMissingData: NOT_BREACHING
+    alarmActions:
+      - eks-warning-alarms
+    tags:
+      "{{hosted:domain}}:severity": warning
+      "{{hosted:domain}}:billing": {{hosted:organization}}
+      "{{hosted:domain}}:managed-by": {{hosted:organization}}
+      "{{hosted:domain}}:account": {{hosted:account}}
+      "{{hosted:domain}}:region": {{hosted:region}}
+      "{{hosted:domain}}:name": {{hosted:name}}
+      "{{hosted:domain}}:alias": {{hosted:alias}}
+      "{{hosted:domain}}:environment": {{hosted:environment}}
+      "{{hosted:domain}}:version": {{hosted:version}}
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}.eks"
+      {{#hosted:tags}}
+      "{{key}}": "{{value}}"
+      {{/hosted:tags}}
+
+  - name: {{hosted:id}}-eks-authentication-failure-warning
+    description: "warning: high number of authentication failures"
+    metricNamespace: eks/cluster/{{hosted:id}}-eks
+    metricName: AuthenticationFailureCount
+    statistic: Sum
+    dimensions:
+      ClusterName: {{hosted:id}}-eks
+    periodMinutes: 5
+    evaluationPeriods: 3
+    threshold: 10.0
+    comparisonOperator: GREATER_THAN_THRESHOLD
+    treatMissingData: NOT_BREACHING
+    alarmActions:
+      - eks-warning-alarms
+    tags:
+      "{{hosted:domain}}:severity": warning
+      "{{hosted:domain}}:billing": {{hosted:organization}}
+      "{{hosted:domain}}:managed-by": {{hosted:organization}}
+      "{{hosted:domain}}:account": {{hosted:account}}
+      "{{hosted:domain}}:region": {{hosted:region}}
+      "{{hosted:domain}}:name": {{hosted:name}}
+      "{{hosted:domain}}:alias": {{hosted:alias}}
+      "{{hosted:domain}}:environment": {{hosted:environment}}
+      "{{hosted:domain}}:version": {{hosted:version}}
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}.eks"
+      {{#hosted:tags}}
+      "{{key}}": "{{value}}"
+      {{/hosted:tags}}
+
+  - name: {{hosted:id}}-eks-nodecpuutilization-critical
+    description: "critical: high cpu utilization on eks nodes"
+    metricNamespace: AWS/EC2
+    metricName: CPUUtilization
+    statistic: Average
+    dimensions:
+      AutoScalingGroupName: {{hosted:id}}-eks
+    periodMinutes: 5
+    evaluationPeriods: 3
+    threshold: 85.0
+    comparisonOperator: GREATER_THAN_THRESHOLD
+    treatMissingData: MISSING
+    alarmActions:
+      - eks-critical-alarms
+    tags:
+      "{{hosted:domain}}:severity": critical
+      "{{hosted:domain}}:billing": {{hosted:organization}}
+      "{{hosted:domain}}:managed-by": {{hosted:organization}}
+      "{{hosted:domain}}:account": {{hosted:account}}
+      "{{hosted:domain}}:region": {{hosted:region}}
+      "{{hosted:domain}}:name": {{hosted:name}}
+      "{{hosted:domain}}:alias": {{hosted:alias}}
+      "{{hosted:domain}}:environment": {{hosted:environment}}
+      "{{hosted:domain}}:version": {{hosted:version}}
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}.eks"
+      {{#hosted:tags}}
+      "{{key}}": "{{value}}"
+      {{/hosted:tags}}
+
+dashboards:
+  - name: {{hosted:id}}-eks-monitoring
+    body: |
+      {
+        "widgets": [
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "# EKS Cluster Monitoring - {{hosted:id}}-eks",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## Cluster Overview",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "cluster_node_count", "ClusterName", "{{hosted:id}}-eks", { "label": "Total Nodes" } ],
+                [ ".", "cluster_failed_node_count", ".", ".", { "label": "Failed Nodes" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Node Status",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              },
+              "annotations": {
+                "horizontal": [
+                  {
+                    "label": "Node Failure",
+                    "value": 1,
+                    "color": "#ff0000"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "pod_status_ready", "ClusterName", "{{hosted:id}}-eks", { "label": "Ready Pods" } ],
+                [ "AWS/EKS", "scheduler_pending_pods", "ClusterName", "{{hosted:id}}-eks", { "label": "Pending Pods" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Pod Status",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "service_number_of_running_pods", "ClusterName", "{{hosted:id}}-eks", { "stat": "Sum", "label": "Service Running Pods" } ],
+                [ ".", "namespace_number_of_running_pods", ".", ".", { "stat": "Sum", "label": "Namespace Running Pods" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Running Pods Summary",
+              "period": 60,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## Resource Utilization",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 12,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_cpu_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Average CPU" } ],
+                [ ".", ".", ".", ".", { "stat": "Maximum", "label": "Maximum CPU" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Cluster CPU Utilization",
+              "period": 300,
+              "annotations": {
+                "horizontal": [
+                  {
+                    "label": "Critical",
+                    "value": 85,
+                    "color": "#ff0000"
+                  },
+                  {
+                    "label": "Warning",
+                    "value": 70,
+                    "color": "#ffcc00"
+                  }
+                ]
+              },
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 12,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_memory_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Average Memory" } ],
+                [ ".", ".", ".", ".", { "stat": "Maximum", "label": "Maximum Memory" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Cluster Memory Utilization",
+              "period": 300,
+              "annotations": {
+                "horizontal": [
+                  {
+                    "label": "Critical",
+                    "value": 90,
+                    "color": "#ff0000"
+                  },
+                  {
+                    "label": "Warning",
+                    "value": 80,
+                    "color": "#ffcc00"
+                  }
+                ]
+              },
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ { "expression": "SEARCH('{ContainerInsights,ClusterName,InstanceId,NodeName} MetricName=\"node_cpu_utilization\" ClusterName=\"{{hosted:id}}-eks\"', 'Average', 300)", "id": "e1", "label": "Node CPU Utilization" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Node CPU Utilization",
+              "period": 300,
+              "annotations": {
+                "horizontal": [
+                  {
+                    "label": "Critical",
+                    "value": 85,
+                    "color": "#ff0000"
+                  }
+                ]
+              },
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ { "expression": "SEARCH('{ContainerInsights,ClusterName} MetricName=\"node_memory_utilization\" ClusterName=\"{{hosted:id}}-eks\"', 'Average', 300)", "id": "e2", "label": "Node Memory Utilization" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Node Memory Utilization",
+              "period": 300,
+              "annotations": {
+                "horizontal": [
+                  {
+                    "label": "Critical",
+                    "value": 90,
+                    "color": "#ff0000"
+                  }
+                ]
+              },
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_filesystem_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Filesystem Utilization" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Node Filesystem Utilization",
+              "period": 300,
+              "annotations": {
+                "horizontal": [
+                  {
+                    "label": "Critical",
+                    "value": 85,
+                    "color": "#ff0000"
+                  },
+                  {
+                    "label": "Warning",
+                    "value": 75,
+                    "color": "#ffcc00"
+                  }
+                ]
+              },
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## Pod Metrics",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "pod_number_of_container_restarts", "ClusterName", "{{hosted:id}}-eks", { "label": "Pod Restarts", "stat": "Sum" } ],
+                [ "ContainerInsights", "pod_container_status_waiting_reason_crash_loop_back_off", "ClusterName", "{{hosted:id}}-eks", { "label": "Pods in CrashLoopBackOff", "stat": "Maximum" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Pod Stability Issues",
+              "period": 300,
+              "annotations": {
+                "horizontal": [
+                  {
+                    "label": "Warning",
+                    "value": 5,
+                    "color": "#ffcc00"
+                  }
+                ]
+              },
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ { "expression": "SEARCH('{ContainerInsights,ClusterName,Namespace,PodName} MetricName=\"pod_cpu_utilization\" ClusterName=\"{{hosted:id}}-eks\"', 'Average', 300)", "id": "e3", "label": "Pod CPU Utilization" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Top 10 Pods by CPU Utilization",
+              "period": 300,
+              "annotations": {
+                "horizontal": [
+                  {
+                    "label": "Critical",
+                    "value": 85,
+                    "color": "#ff0000"
+                  }
+                ]
+              },
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ { "expression": "SEARCH('{ContainerInsights,ClusterName,Namespace,PodName} MetricName=\"pod_memory_utilization\" ClusterName=\"{{hosted:id}}-eks\"', 'Average', 300)", "id": "e4", "label": "Pod Memory Utilization" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Top 10 Pods by Memory Utilization",
+              "period": 300,
+              "annotations": {
+                "horizontal": [
+                  {
+                    "label": "Critical",
+                    "value": 90,
+                    "color": "#ff0000"
+                  }
+                ]
+              },
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 12,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "pod_container_status_waiting_reason_image_pull_error", "ClusterName", "{{hosted:id}}-eks", { "label": "Image Pull Errors", "stat": "Maximum" } ],
+                [ "ContainerInsights", "pod_container_status_waiting_reason_create_container_error", "ClusterName", "{{hosted:id}}-eks", { "label": "Container Create Errors", "stat": "Maximum" } ],
+                [ "ContainerInsights", "pod_container_status_terminated_reason_oom_killed", "ClusterName", "{{hosted:id}}-eks", { "label": "OOM Killed", "stat": "Maximum" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Pod Error States",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 12,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "replicas_desired", "ClusterName", "{{hosted:id}}-eks", { "label": "Desired Replicas", "stat": "Maximum" } ],
+                [ "ContainerInsights", "replicas_ready", "ClusterName", "{{hosted:id}}-eks", { "label": "Ready Replicas", "stat": "Maximum" } ],
+                [ "ContainerInsights", "status_replicas_available", "ClusterName", "{{hosted:id}}-eks", { "label": "Available Replicas", "stat": "Maximum" } ],
+                [ "ContainerInsights", "status_replicas_unavailable", "ClusterName", "{{hosted:id}}-eks", { "label": "Unavailable Replicas", "stat": "Maximum" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Deployment Replicas",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## Network Metrics",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ { "expression": "SEARCH('{ContainerInsights,ClusterName,InstanceId,NodeName} MetricName=\"node_network_total_bytes\" ClusterName=\"{{hosted:id}}-eks\"', 'Average', 300)", "id": "e5", "label": "Network Total Bytes" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Node Network Traffic",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Bytes/sec",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ { "expression": "SEARCH('{ContainerInsights,ClusterName,Namespace,PodName} MetricName=\"pod_network_rx_bytes\" ClusterName=\"{{hosted:id}}-eks\"', 'Average', 300)", "id": "e7", "label": "Pod Network In" } ],
+                [ { "expression": "SEARCH('{ContainerInsights,ClusterName,Namespace,PodName} MetricName=\"pod_network_tx_bytes\" ClusterName=\"{{hosted:id}}-eks\"', 'Average', 300)", "id": "e8", "label": "Pod Network Out" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Top 10 Pods by Network Traffic",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Bytes/sec",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_interface_network_rx_dropped", "ClusterName", "{{hosted:id}}-eks", { "label": "RX Dropped" } ],
+                [ "ContainerInsights", "node_interface_network_tx_dropped", "ClusterName", "{{hosted:id}}-eks", { "label": "TX Dropped" } ],
+                [ "ContainerInsights", "pod_interface_network_rx_dropped", "ClusterName", "{{hosted:id}}-eks", { "label": "Pod RX Dropped" } ],
+                [ "ContainerInsights", "pod_interface_network_tx_dropped", "ClusterName", "{{hosted:id}}-eks", { "label": "Pod TX Dropped" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Network Packet Drops",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## EFA Network Metrics",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_efa_rx_bytes", "ClusterName", "{{hosted:id}}-eks", { "label": "EFA RX Bytes" } ],
+                [ "ContainerInsights", "node_efa_tx_bytes", "ClusterName", "{{hosted:id}}-eks", { "label": "EFA TX Bytes" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Node EFA Traffic",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Bytes/sec",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "pod_efa_rx_bytes", "ClusterName", "{{hosted:id}}-eks", { "label": "Pod EFA RX Bytes" } ],
+                [ "ContainerInsights", "pod_efa_tx_bytes", "ClusterName", "{{hosted:id}}-eks", { "label": "Pod EFA TX Bytes" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Pod EFA Traffic",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Bytes/sec",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_efa_rdma_read_bytes", "ClusterName", "{{hosted:id}}-eks", { "label": "RDMA Read" } ],
+                [ "ContainerInsights", "node_efa_rdma_write_bytes", "ClusterName", "{{hosted:id}}-eks", { "label": "RDMA Write" } ],
+                [ "ContainerInsights", "node_efa_rdma_write_recv_bytes", "ClusterName", "{{hosted:id}}-eks", { "label": "RDMA Write Recv" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Node EFA RDMA Traffic",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Bytes/sec",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## GPU Metrics",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_gpu_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Node GPU Utilization" } ],
+                [ "ContainerInsights", "pod_gpu_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Pod GPU Utilization" } ],
+                [ "ContainerInsights", "container_gpu_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Container GPU Utilization" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "GPU Utilization",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_gpu_memory_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Node GPU Memory" } ],
+                [ "ContainerInsights", "pod_gpu_memory_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Pod GPU Memory" } ],
+                [ "ContainerInsights", "container_gpu_memory_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Container GPU Memory" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "GPU Memory Utilization",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_gpu_temperature", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "GPU Temperature" } ],
+                [ "ContainerInsights", "node_gpu_power_draw", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "GPU Power Draw" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "GPU Temperature and Power",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Temperature (°C)",
+                  "showUnits": false
+                },
+                "right": {
+                  "min": 0,
+                  "label": "Power (W)",
+                  "showUnits": false
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## AWS Neuron (Inferentia) Metrics",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_neuroncore_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Node NeuronCore" } ],
+                [ "ContainerInsights", "pod_neuroncore_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Pod NeuronCore" } ],
+                [ "ContainerInsights", "container_neuroncore_utilization", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Container NeuronCore" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "NeuronCore Utilization",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_neuroncore_memory_usage_total", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Total Memory Usage" } ],
+                [ "ContainerInsights", "node_neurondevice_runtime_memory_used_bytes", "ClusterName", "{{hosted:id}}-eks", { "stat": "Average", "label": "Runtime Memory" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Neuron Memory Usage",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Bytes",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ContainerInsights", "node_neuron_execution_errors", "ClusterName", "{{hosted:id}}-eks", { "stat": "Sum", "label": "Execution Errors" } ],
+                [ "ContainerInsights", "node_neurondevice_hw_ecc_events", "ClusterName", "{{hosted:id}}-eks", { "stat": "Sum", "label": "HW ECC Events" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Neuron Execution Errors",
+              "period": 300,
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## API Server Metrics",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 12,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "AWS/EKS", "apiserver_request_duration_seconds_GET_P99", "ClusterName", "{{hosted:id}}-eks", { "label": "GET P99" } ],
+                [ "AWS/EKS", "apiserver_request_duration_seconds_POST_P99", "ClusterName", "{{hosted:id}}-eks", { "label": "POST P99" } ],
+                [ "AWS/EKS", "apiserver_request_duration_seconds_PUT_P99", "ClusterName", "{{hosted:id}}-eks", { "label": "PUT P99" } ],
+                [ "AWS/EKS", "apiserver_request_duration_seconds_PATCH_P99", "ClusterName", "{{hosted:id}}-eks", { "label": "PATCH P99" } ],
+                [ "AWS/EKS", "apiserver_request_duration_seconds_LIST_P99", "ClusterName", "{{hosted:id}}-eks", { "label": "LIST P99" } ],
+                [ "AWS/EKS", "apiserver_request_duration_seconds_DELETE_P99", "ClusterName", "{{hosted:id}}-eks", { "label": "DELETE P99" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "API Server Latency by Method (P99)",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Seconds",
+                  "showUnits": true
+                }
+              },
+              "annotations": {
+                "horizontal": [
+                  {
+                    "label": "Critical",
+                    "value": 0.2,
+                    "color": "#ff0000"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 12,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "AWS/EKS", "apiserver_request_total", "ClusterName", "{{hosted:id}}-eks", { "label": "Total Requests" } ],
+                [ "AWS/EKS", "apiserver_request_total_4XX", "ClusterName", "{{hosted:id}}-eks", { "label": "4XX Errors" } ],
+                [ "AWS/EKS", "apiserver_request_total_5XX", "ClusterName", "{{hosted:id}}-eks", { "label": "5XX Errors" } ],
+                [ "AWS/EKS", "apiserver_request_total_429", "ClusterName", "{{hosted:id}}-eks", { "label": "429 Rate Limited" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "API Request Volume & Errors",
+              "period": 60,
+              "stat": "Sum",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "AWS/EKS", "apiserver_requested_deprecated_apis", "ClusterName", "{{hosted:id}}-eks", { "label": "Deprecated API Use" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Deprecated API Usage",
+              "period": 60,
+              "stat": "Sum",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "AWS/EKS", "apiserver_admission_webhook_rejection_count_ADMIT", "ClusterName", "{{hosted:id}}-eks", { "label": "Admit Rejections" } ],
+                [ "AWS/EKS", "apiserver_admission_webhook_rejection_count_VALIDATING", "ClusterName", "{{hosted:id}}-eks", { "label": "Validating Rejections" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Admission Webhook Rejections",
+              "period": 60,
+              "stat": "Sum",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "AWS/EKS", "apiserver_flowcontrol_rejected_requests_total", "ClusterName", "{{hosted:id}}-eks", { "label": "Flow Control Rejected" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "API Server Flow Control Rejections",
+              "period": 60,
+              "stat": "Sum",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## API Server Load",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "AWS/EKS", "apiserver_current_inflight_requests_READONLY", "ClusterName", "{{hosted:id}}-eks", { "label": "In-flight Read Requests" } ],
+                [ "AWS/EKS", "apiserver_current_inflight_requests_MUTATING", "ClusterName", "{{hosted:id}}-eks", { "label": "In-flight Write Requests" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "API Server In-flight Requests",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "AWS/EKS", "apiserver_current_inqueue_requests", "ClusterName", "{{hosted:id}}-eks", { "label": "Requests In Queue" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "API Server Queue Depth",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "AWS/EKS", "apiserver_storage_size_bytes", "ClusterName", "{{hosted:id}}-eks", { "label": "ETCD Storage Size" } ],
+                [ "AWS/EKS", "apiserver_storage_db_total_size_in_bytes", "ClusterName", "{{hosted:id}}-eks", { "label": "DB Total Size" } ],
+                [ "AWS/EKS", "etcd_db_total_size_in_bytes", "ClusterName", "{{hosted:id}}-eks", { "label": "ETCD DB Size" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "API Server Storage Size",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Bytes",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## Scheduler Metrics",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 12,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "AWS/EKS", "scheduler_pending_pods", "ClusterName", "{{hosted:id}}-eks", { "label": "All Pending Pods" } ],
+                [ "AWS/EKS", "scheduler_pending_pods_ACTIVEQ", "ClusterName", "{{hosted:id}}-eks", { "label": "Active Queue" } ],
+                [ "AWS/EKS", "scheduler_pending_pods_BACKOFF", "ClusterName", "{{hosted:id}}-eks", { "label": "Backoff Queue" } ],
+                [ "AWS/EKS", "scheduler_pending_pods_UNSCHEDULABLE", "ClusterName", "{{hosted:id}}-eks", { "label": "Unschedulable" } ],
+                [ "AWS/EKS", "scheduler_pending_pods_GATED", "ClusterName", "{{hosted:id}}-eks", { "label": "Gated Queue" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": true,
+              "region": "{{hosted:region}}",
+              "title": "Scheduler Pending Pods",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 12,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "AWS/EKS", "scheduler_schedule_attempts_total", "ClusterName", "{{hosted:id}}-eks", { "label": "Total Scheduling Attempts" } ],
+                [ "AWS/EKS", "scheduler_schedule_attempts_SCHEDULED", "ClusterName", "{{hosted:id}}-eks", { "label": "Successful Schedules" } ],
+                [ "AWS/EKS", "scheduler_schedule_attempts_UNSCHEDULABLE", "ClusterName", "{{hosted:id}}-eks", { "label": "Failed - Unschedulable" } ],
+                [ "AWS/EKS", "scheduler_schedule_attempts_ERROR", "ClusterName", "{{hosted:id}}-eks", { "label": "Failed - Error" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Scheduler Attempts",
+              "period": 60,
+              "stat": "Sum",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## Application Signals",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "metric",
+            "width": 12,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ApplicationSignals", "Latency", "Environment", "{{hosted:environment}}", "Service", "${Service}", "Operation", "${Operation}", { "label": "Operation Latency" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Application Latency",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "ms",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 12,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ApplicationSignals", "Error", "Environment", "{{hosted:environment}}", "Service", "${Service}", "Operation", "${Operation}", { "label": "Error Rate" } ],
+                [ "ApplicationSignals", "Fault", "Environment", "{{hosted:environment}}", "Service", "${Service}", "Operation", "${Operation}", { "label": "Fault Rate" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "Application Errors",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 1,
+                  "label": "Rate",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ApplicationSignals", "JVMCpuRecentUtilization", "Environment", "{{hosted:environment}}", "Service", "${Service}", { "label": "JVM CPU" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "JVM CPU Utilization",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "max": 100,
+                  "label": "Percent",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ApplicationSignals", "JVMMemoryHeapUsed", "Environment", "{{hosted:environment}}", "Service", "${Service}", { "label": "Heap Used" } ],
+                [ "ApplicationSignals", "JVMMemoryOldGenUsed", "Environment", "{{hosted:environment}}", "Service", "${Service}", { "label": "Old Gen" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "JVM Memory Usage",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Bytes",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "metric",
+            "width": 8,
+            "height": 6,
+            "properties": {
+              "metrics": [
+                [ "ApplicationSignals", "JVMGCCount", "Environment", "{{hosted:environment}}", "Service", "${Service}", { "label": "Total GC Count" } ],
+                [ "ApplicationSignals", "JVMGCDuration", "Environment", "{{hosted:environment}}", "Service", "${Service}", { "label": "GC Duration", "yAxis": "right" } ]
+              ],
+              "view": "timeSeries",
+              "stacked": false,
+              "region": "{{hosted:region}}",
+              "title": "JVM Garbage Collection",
+              "period": 60,
+              "stat": "Average",
+              "yAxis": {
+                "left": {
+                  "min": 0,
+                  "label": "Count",
+                  "showUnits": true
+                },
+                "right": {
+                  "min": 0,
+                  "label": "ms",
+                  "showUnits": true
+                }
+              }
+            }
+          },
+          {
+            "type": "text",
+            "width": 24,
+            "height": 1,
+            "properties": {
+              "markdown": "## Error Logs",
+              "background": "transparent"
+            }
+          },
+          {
+            "type": "log",
+            "width": 24,
+            "height": 6,
+            "properties": {
+              "query": "SOURCE '/aws/eks/{{hosted:id}}-eks/cluster' | fields @timestamp, @message\n| filter @message like /Error|Exception|Failed/\n| sort @timestamp desc\n| limit 20",
+              "region": "{{hosted:region}}",
+              "title": "EKS Control Plane Errors",
+              "view": "table"
+            }
+          },
+          {
+            "type": "log",
+            "width": 24,
+            "height": 6,
+            "properties": {
+              "query": "SOURCE '/aws/containerinsights/{{hosted:id}}-eks/application' | fields @timestamp, @message\n| filter @message like /Error|Exception|Failed|OOMKilled|CrashLoopBackOff/\n| sort @timestamp desc\n| limit 20",
+              "region": "{{hosted:region}}",
+              "title": "Container Errors",
+              "view": "table"
+            }
+          }
+        ]
+      }
+    tags:
+      "{{hosted:domain}}:billing": "{{hosted:organization}}"
+      "{{hosted:domain}}:managed-by": "{{hosted:organization}}"
+      "{{hosted:domain}}:account": "{{hosted:account}}"
+      "{{hosted:domain}}:region": "{{hosted:region}}"
+      "{{hosted:domain}}:name": "{{hosted:name}}"
+      "{{hosted:domain}}:alias": "{{hosted:alias}}"
+      "{{hosted:domain}}:environment": "{{hosted:environment}}"
+      "{{hosted:domain}}:version": "{{hosted:version}}"
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}.eks"
+      {{#hosted:tags}}
+      "{{key}}": "{{value}}"
+      {{/hosted:tags}}

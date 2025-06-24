@@ -1,0 +1,40 @@
+[
+  {
+    "Effect": "Allow",
+    "Action": [
+      "kafka-cluster:Connect",
+      "kafka-cluster:AlterCluster",
+      "kafka-cluster:DescribeCluster"
+    ],
+    "Resource": [
+      {{#clusters}}
+        "{{.}}",
+      {{/clusters}}
+    ]
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "kafka-cluster:*Topic*",
+      "kafka-cluster:WriteData",
+      "kafka-cluster:ReadData"
+    ],
+    "Resource": [
+      {{#topics}}
+        "{{.}}",
+      {{/topics}}
+    ]
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "kafka-cluster:AlterGroup",
+      "kafka-cluster:DescribeGroup"
+    ],
+    "Resource": [
+      {{#groups}}
+        "{{.}}",
+      {{/groups}}
+    ]
+  }
+]

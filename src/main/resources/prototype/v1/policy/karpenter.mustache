@@ -1,0 +1,246 @@
+[
+  {
+    "Sid": "AllowScopedEC2InstanceAccessActions",
+    "Effect": "Allow",
+    "Resource": [
+      "arn:aws:ec2:{{hosted:region}}::image/*",
+      "arn:aws:ec2:{{hosted:region}}::snapshot/*",
+      "arn:aws:ec2:{{hosted:region}}:*:security-group/*",
+      "arn:aws:ec2:{{hosted:region}}:*:subnet/*"
+    ],
+    "Action": [
+      "ec2:RunInstances",
+      "ec2:CreateFleet"
+    ]
+  },
+  {
+    "Sid": "AllowScopedEC2LaunchTemplateAccessActions",
+    "Effect": "Allow",
+    "Resource": [ "arn:aws:ec2:{{hosted:region}}:*:launch-template/*" ],
+    "Action": [
+      "ec2:RunInstances",
+      "ec2:CreateFleet"
+    ],
+    "Condition": {
+      "StringEquals": {
+        "aws:ResourceTag/kubernetes.io/cluster/{{cluster}}": "owned"
+      },
+      "StringLike": {
+        "aws:ResourceTag/karpenter.sh/nodepool": "*"
+      }
+    }
+  },
+  {
+    "Sid": "AllowScopedEC2InstanceActionsWithTags",
+    "Effect": "Allow",
+    "Resource": [
+      "arn:aws:ec2:{{hosted:region}}:*:fleet/*",
+      "arn:aws:ec2:{{hosted:region}}:*:instance/*",
+      "arn:aws:ec2:{{hosted:region}}:*:volume/*",
+      "arn:aws:ec2:{{hosted:region}}:*:network-interface/*",
+      "arn:aws:ec2:{{hosted:region}}:*:launch-template/*",
+      "arn:aws:ec2:{{hosted:region}}:*:spot-instances-request/*"
+    ],
+    "Action": [
+      "ec2:RunInstances",
+      "ec2:CreateFleet",
+      "ec2:CreateLaunchTemplate"
+    ],
+    "Condition": {
+      "StringEquals": {
+        "aws:RequestTag/kubernetes.io/cluster/{{cluster}}": "owned"
+      },
+      "StringLike": {
+        "aws:RequestTag/karpenter.sh/nodepool": "*"
+      }
+    }
+  },
+  {
+    "Sid": "AllowScopedResourceCreationTagging",
+    "Effect": "Allow",
+    "Resource": [
+      "arn:aws:ec2:{{hosted:region}}:*:fleet/*",
+      "arn:aws:ec2:{{hosted:region}}:*:instance/*",
+      "arn:aws:ec2:{{hosted:region}}:*:volume/*",
+      "arn:aws:ec2:{{hosted:region}}:*:network-interface/*",
+      "arn:aws:ec2:{{hosted:region}}:*:launch-template/*",
+      "arn:aws:ec2:{{hosted:region}}:*:spot-instances-request/*"
+    ],
+    "Action": [ "ec2:CreateTags" ],
+    "Condition": {
+      "StringEquals": {
+        "aws:RequestTag/kubernetes.io/cluster/{{cluster}}": "owned",
+        "ec2:CreateAction": [
+          "RunInstances",
+          "CreateFleet",
+          "CreateLaunchTemplate"
+        ]
+      },
+      "StringLike": {
+        "aws:RequestTag/karpenter.sh/nodepool": "*"
+      }
+    }
+  },
+  {
+    "Sid": "AllowScopedResourceTagging",
+    "Effect": "Allow",
+    "Resource": [ "arn:aws:ec2:{{hosted:region}}:*:instance/*" ],
+    "Action": [ "ec2:CreateTags" ],
+    "Condition": {
+      "StringEquals": {
+        "aws:ResourceTag/kubernetes.io/cluster/{{cluster}}": "owned"
+      },
+      "StringLike": {
+        "aws:ResourceTag/karpenter.sh/nodepool": "*"
+      },
+      "ForAllValues:StringEquals": {
+        "aws:TagKeys": [
+          "karpenter.sh/nodeclaim",
+          "Name"
+        ]
+      }
+    }
+  },
+  {
+    "Sid": "AllowScopedDeletion",
+    "Effect": "Allow",
+    "Resource": [
+      "arn:aws:ec2:{{hosted:region}}:*:instance/*",
+      "arn:aws:ec2:{{hosted:region}}:*:launch-template/*"
+    ],
+    "Action": [
+      "ec2:TerminateInstances",
+      "ec2:DeleteLaunchTemplate"
+    ],
+    "Condition": {
+      "StringEquals": {
+        "aws:ResourceTag/kubernetes.io/cluster/{{cluster}}": "owned"
+      },
+      "StringLike": {
+        "aws:ResourceTag/karpenter.sh/nodepool": "*"
+      }
+    }
+  },
+  {
+    "Sid": "AllowRegionalReadActions",
+    "Effect": "Allow",
+    "Resource": [ "*" ],
+    "Action": [
+      "ec2:DescribeAvailabilityZones",
+      "ec2:DescribeImages",
+      "ec2:DescribeInstances",
+      "ec2:DescribeInstanceTypeOfferings",
+      "ec2:DescribeInstanceTypes",
+      "ec2:DescribeLaunchTemplates",
+      "ec2:DescribeSecurityGroups",
+      "ec2:DescribeSpotPriceHistory",
+      "ec2:DescribeSubnets"
+    ],
+    "Condition": {
+      "StringEquals": {
+        "aws:RequestedRegion": "{{hosted:region}}"
+      }
+    }
+  },
+  {
+    "Sid": "AllowSSMReadActions",
+    "Effect": "Allow",
+    "Resource": [ "arn:aws:ssm:{{hosted:region}}::parameter/aws/service/*" ],
+    "Action": [ "ssm:GetParameter" ]
+  },
+  {
+    "Sid": "AllowPricingReadActions",
+    "Effect": "Allow",
+    "Resource": [ "*" ],
+    "Action": [ "pricing:GetProducts" ]
+  },
+  {
+    "Sid": "AllowInterruptionQueueActions",
+    "Effect": "Allow",
+    "Resource": [ "arn:aws:sqs:{{hosted:region}}:{{hosted:account}}:{{queue}}" ],
+    "Action": [
+      "sqs:DeleteMessage",
+      "sqs:GetQueueUrl",
+      "sqs:ReceiveMessage"
+    ]
+  },
+  {
+    "Sid": "AllowPassingInstanceRole",
+    "Effect": "Allow",
+    "Resource": [ "{{ nodeRole }}" ],
+    "Action": [ "iam:PassRole" ],
+    "Condition": {
+      "StringEquals": {
+        "iam:PassedToService": "ec2.amazonaws.com"
+      }
+    }
+  },
+  {
+    "Sid": "AllowScopedInstanceProfileCreationActions",
+    "Effect": "Allow",
+    "Resource": [ "*" ],
+    "Action": [
+      "iam:CreateInstanceProfile"
+    ],
+    "Condition": {
+      "StringEquals": {
+        "aws:RequestTag/kubernetes.io/cluster/{{cluster}}": "owned",
+        "aws:RequestTag/topology.kubernetes.io/region": "{{hosted:region}}"
+      },
+      "StringLike": {
+        "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+      }
+    }
+  },
+  {
+    "Sid": "AllowScopedInstanceProfileTagActions",
+    "Effect": "Allow",
+    "Resource": [ "*" ],
+    "Action": [
+      "iam:TagInstanceProfile"
+    ],
+    "Condition": {
+      "StringEquals": {
+        "aws:ResourceTag/kubernetes.io/cluster/{{cluster}}": "owned",
+        "aws:ResourceTag/topology.kubernetes.io/region": "{{hosted:region}}",
+        "aws:RequestTag/kubernetes.io/cluster/{{cluster}}": "owned",
+        "aws:RequestTag/topology.kubernetes.io/region": "{{hosted:region}}"
+      },
+      "StringLike": {
+        "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",
+        "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+      }
+    }
+  },
+  {
+    "Sid": "AllowScopedInstanceProfileActions",
+    "Effect": "Allow",
+    "Resource": [ "*" ],
+    "Action": [
+      "iam:AddRoleToInstanceProfile",
+      "iam:RemoveRoleFromInstanceProfile",
+      "iam:DeleteInstanceProfile"
+    ],
+    "Condition": {
+      "StringEquals": {
+        "aws:ResourceTag/kubernetes.io/cluster/{{cluster}}": "owned",
+        "aws:ResourceTag/topology.kubernetes.io/region": "{{hosted:region}}"
+      },
+      "StringLike": {
+        "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
+      }
+    }
+  },
+  {
+    "Sid": "AllowInstanceProfileReadActions",
+    "Effect": "Allow",
+    "Resource": [ "*" ],
+    "Action": [ "iam:GetInstanceProfile" ]
+  },
+  {
+    "Sid": "AllowAPIServerEndpointDiscovery",
+    "Effect": "Allow",
+    "Resource": [ "arn:aws:eks:{{hosted:region}}:{{hosted:account}}:cluster/{{cluster}}" ],
+    "Action": [ "eks:DescribeCluster" ]
+  }
+]

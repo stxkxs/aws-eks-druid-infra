@@ -1,0 +1,40 @@
+kafka:
+  name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk
+  clients:
+    - name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk-client
+      serviceAccount:
+        metadata:
+          name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk-sa
+          namespace: api
+          labels:
+            "{{hosted:domain}}/resource-type": service-account
+            "{{hosted:domain}}/category": druid
+            "{{hosted:domain}}/type": ingestion
+            "{{hosted:domain}}/component": api
+            "{{hosted:domain}}/part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+          annotations: { }
+        role:
+          name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk-sa
+          managedPolicyNames: [ ]
+          customPolicies:
+            - name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-cluster-access
+              policy: policy/msk-cluster-access.mustache
+              mappings:
+                topics:
+                  - arn:aws:kafka:{{hosted:region}}:{{hosted:account}}:topic/{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk/*
+                clusters:
+                  - arn:aws:kafka:{{hosted:region}}:{{hosted:account}}:cluster/{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk/*
+                groups:
+                  - arn:aws:kafka:{{hosted:region}}:{{hosted:account}}:group/{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk/*
+          tags:
+            "{{hosted:domain}}:resource-type": role
+            "{{hosted:domain}}:category": api
+            "{{hosted:domain}}:type": ingest
+            "{{hosted:domain}}:component": {{hosted:id}}-api
+            "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+  tags:
+    "{{hosted:domain}}:resource-type": msk
+    "{{hosted:domain}}:category": compute
+    "{{hosted:domain}}:type": streaming
+    "{{hosted:domain}}:component": {{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk
+    "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"

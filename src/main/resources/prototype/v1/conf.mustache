@@ -1,0 +1,144 @@
+host:
+  common:
+    id: {{host:id}}
+    organization: {{host:organization}}
+    account: {{host:account}}
+    region: {{host:region}}
+    name: {{host:name}}
+    alias: {{host:alias}}
+    environment: {{host:environment}}
+    version: {{host:version}}
+    domain: {{host:domain}}
+    tags:
+      "{{host:domain}}:billing": {{host:organization}}
+      "{{host:domain}}:managed-by": {{host:organization}}
+      "{{host:domain}}:account": {{host:account}}
+      "{{host:domain}}:region": {{host:region}}
+      "{{host:domain}}:name": {{host:name}}
+      "{{host:domain}}:alias": {{host:alias}}
+      "{{host:domain}}:environment": {{host:environment}}
+      "{{host:domain}}:version": {{host:version}}
+      "{{host:domain}}:part-of": {{host:organization}}.{{host:account}}.{{host:name}}.{{host:alias}}
+
+hosted:
+  common:
+    id: {{hosted:id}}
+    organization: {{hosted:organization}}
+    account: {{hosted:account}}
+    region: {{hosted:region}}
+    name: {{hosted:name}}
+    alias: {{hosted:alias}}
+    environment: {{hosted:environment}}
+    version: {{hosted:version}}
+    domain: {{hosted:domain}}
+    tags:
+      "{{hosted:domain}}:billing": {{hosted:organization}}
+      "{{hosted:domain}}:managed-by": {{hosted:organization}}
+      "{{hosted:domain}}:account": {{hosted:account}}
+      "{{hosted:domain}}:region": {{hosted:region}}
+      "{{hosted:domain}}:name": {{hosted:name}}
+      "{{hosted:domain}}:alias": {{hosted:alias}}
+      "{{hosted:domain}}:environment": {{hosted:environment}}
+      "{{hosted:domain}}:version": {{hosted:version}}
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+      {{#hosted:tags}}
+      "{{key}}": "{{value}}"
+      {{/hosted:tags}}
+
+  vpc:
+    name: {{hosted:id}}-vpc
+    cidr: 10.0.0.0/16
+    ipProtocol: ipv4_only
+    natGateways: 2
+    createInternetGateway: true
+    availabilityZones:
+      - {{hosted:region}}a
+      - {{hosted:region}}b
+      - {{hosted:region}}c
+    enableDnsSupport: true
+    enableDnsHostnames: true
+    defaultInstanceTenancy: default
+    securityGroups: [ ]
+    subnets:
+      - name: public
+        cidrMask: 24
+        reserved: false
+        subnetType: public
+        mapPublicIpOnLaunch: false
+        tags:
+          "{{hosted:domain}}:resource-type": subnet
+          "{{hosted:domain}}:category": network
+          "{{hosted:domain}}:type": public
+          "{{hosted:domain}}:cidrMask": 24
+          "{{hosted:domain}}:component": {{hosted:id}}-vpc
+          "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+          "karpenter.sh/discovery": {{hosted:id}}-vpc
+      - name: private
+        cidrMask: 24
+        reserved: false
+        subnetType: private_with_egress
+        tags:
+          "{{hosted:domain}}:resource-type": subnet
+          "{{hosted:domain}}:category": network
+          "{{hosted:domain}}:type": private_with_egress
+          "{{hosted:domain}}:cidrMask": 24
+          "{{hosted:domain}}:component": {{hosted:id}}-vpc
+          "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+          "karpenter.sh/discovery": {{hosted:id}}-vpc
+    tags:
+      "{{hosted:domain}}:resource-type": vpc
+      "{{hosted:domain}}:category": network
+      "{{hosted:domain}}:type": network
+      "{{hosted:domain}}:cidrMask": 24
+      "{{hosted:domain}}:component": {{hosted:id}}-vpc
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+
+  eks:
+    name: {{hosted:id}}-eks
+    version: "1.33"
+    endpointAccess: public_and_private
+    prune: true
+    vpcSubnetTypes:
+      - public
+      - private_with_egress
+    rbac: eks/rbac.mustache
+    tenancy: eks/tenancy.mustache
+    nodeGroups: eks/node-groups.mustache
+    addons: eks/addons.mustache
+    sqs: eks/sqs.mustache
+    observability: eks/observability.mustache
+    loggingTypes:
+      - api
+      - audit
+      - authenticator
+      - controller_manager
+      - scheduler
+    annotations: { }
+    labels:
+      "{{hosted:domain}}/billing": {{hosted:organization}}
+      "{{hosted:domain}}/managed-by": {{hosted:organization}}
+      "{{hosted:domain}}/account": {{hosted:account}}
+      "{{hosted:domain}}/region": {{hosted:region}}
+      "{{hosted:domain}}/version": {{hosted:version}}
+      "{{hosted:domain}}/service": {{hosted:name}}
+      "{{hosted:domain}}/part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+    tags:
+      "{{hosted:domain}}:resource-type": eks
+      "{{hosted:domain}}:category": eks
+      "{{hosted:domain}}:type": analytics
+      "{{hosted:domain}}:component": {{hosted:id}}-eks
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+      "karpenter.sh/discovery": {{hosted:id}}-vpc
+
+  druid:
+    access: druid/setup/access.mustache
+    secrets: druid/setup/secrets.mustache
+    storage: druid/setup/storage.mustache
+    ingestion: druid/setup/ingestion.mustache
+    chart:
+      name: druid
+      namespace: druid
+      release: {{hosted:eks:druid:release}}
+      repository: oci://public.ecr.aws/q9l5h9b2/stxkxs.io/v1/helm/druid
+      values: druid/values.mustache
+      version: 0.1.0

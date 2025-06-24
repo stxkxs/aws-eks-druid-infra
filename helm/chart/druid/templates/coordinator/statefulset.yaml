@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "druid.name" . }}-druid-coordinator
+  labels:
+    {{- include "coordinator.labels" . | indent 4 }}
+  annotations:
+    {{- include "coordinator.annotations" . | indent 4 }}
+spec:
+  serviceName: {{ include "druid.name" . }}-druid-coordinator
+  replicas: {{ .Values.coordinator.replicas }}
+  selector:
+    matchLabels:
+      {{- include "coordinator.match.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "coordinator.labels" . | indent 8 }}
+        {{- include "coordinator.match.labels" . | nindent 8 }}
+      annotations:
+        {{- include "coordinator.annotations" . | indent 8 }}
+    spec:
+      {{- include "common.security" . | nindent 6 }}
+      nodeSelector:
+        {{- include "coordinator.node.selector" . | nindent 8 }}
+      volumes:
+        {{- include "coordinator.volumes" . | nindent 8 }}
+      containers:
+        - name: {{ include "druid.name" . }}-druid-coordinator
+          {{- include "druid.image" . | nindent 10 }}
+          args: [ "coordinator" ]
+          ports:
+            - name: coordinator
+              containerPort: 8281
+              protocol: TCP
+            - name: prometheus
+              containerPort: 9000
+              protocol: TCP
+          env:
+            {{- include "common.env" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.coordinator.resources | nindent 12 }}
+          volumeMounts:
+            {{- include "coordinator.volume.mounts" . | nindent 12 }}
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /status/health
+              port: 8281
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /status/health
+              port: 8281
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /status/health
+              port: 8281
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5

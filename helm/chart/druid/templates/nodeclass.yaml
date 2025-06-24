@@ -1,0 +1,30 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: {{ include "druid.name" . }}-druid-nodeclass
+  labels:
+    {{- include "common.labels" . | indent 4 }}
+  annotations:
+    {{- include "common.annotations" . | indent 4 }}
+spec:
+  role: "{{ .Values.hostedId }}-core-node"
+  amiFamily: "Bottlerocket"
+  amiSelectorTerms:
+    - alias: bottlerocket@latest
+  subnetSelectorTerms:
+    - tags:
+        "{{ .Values.domain }}:resource-type": subnet
+        "{{ .Values.domain }}:category": network
+        "{{ .Values.domain }}:type": private_with_egress
+        "{{ .Values.domain }}:cidrMask": "24"
+        "{{ .Values.domain }}:component": "{{ .Values.hostedId }}-vpc"
+        "{{ .Values.domain }}:part-of": "{{ .Values.organization }}.{{ .Values.name }}.{{ .Values.alias }}"
+        karpenter.sh/discovery: "{{ .Values.hostedId }}-vpc"
+  securityGroupSelectorTerms:
+    - tags:
+        "aws:eks:cluster-name": "{{ .Values.hostedId }}-eks"
+  tags:
+    "{{ .Values.domain }}:resource-type": dynamic-instance
+    "{{ .Values.domain }}:category": analytics
+    "{{ .Values.domain }}:type": druid
+    "{{ .Values.domain }}:part-of": "{{ .Values.organization }}.{{ .Values.name }}.{{ .Values.alias }}"

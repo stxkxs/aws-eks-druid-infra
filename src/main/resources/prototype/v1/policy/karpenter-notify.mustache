@@ -1,0 +1,11 @@
+[
+  {
+    "Effect": "Allow",
+    "Action": [ "sqs:SendMessage" ],
+    "Resource": [
+      {{#resources}}
+        "{{.}}",
+      {{/resources}}
+    ]
+  }
+]

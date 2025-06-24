@@ -1,0 +1,57 @@
+serviceAccount:
+  metadata:
+    name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-sa
+    namespace: druid
+    labels:
+      "{{hosted:domain}}/resource-type": service-account
+      "{{hosted:domain}}/category": compute.storage
+      "{{hosted:domain}}/type": analytics
+      "{{hosted:domain}}/component": druid-access
+      "{{hosted:domain}}/part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+    annotations: { }
+  role:
+    name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-sa
+    principal:
+      type: service
+      value: ec2.amazonaws.com
+    managedPolicyNames: [ ]
+    customPolicies:
+      - name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-bucket-access
+        policy: policy/druid-bucket-access.mustache
+        mappings:
+          resources:
+            - arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-indexlogs
+            - arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-indexlogs/*
+            - arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-deepstorage
+            - arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-deepstorage/*
+            - arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msq
+            - arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msq/*
+      - name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-secret-access
+        policy: policy/secret-access.mustache
+        mappings:
+          resources:
+            - arn:aws:secretsmanager:{{hosted:region}}:{{hosted:account}}:secret:{{hosted:id}}-{{hosted:eks:druid:release}}-druid-tls*
+            - arn:aws:secretsmanager:{{hosted:region}}:{{hosted:account}}:secret:{{hosted:id}}-{{hosted:eks:druid:release}}-druid-admin*
+            - arn:aws:secretsmanager:{{hosted:region}}:{{hosted:account}}:secret:{{hosted:id}}-{{hosted:eks:druid:release}}-druid-system*
+            - arn:aws:secretsmanager:{{hosted:region}}:{{hosted:account}}:secret:{{hosted:id}}-{{hosted:eks:druid:release}}-druid-metadata*
+      - name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-manage-volume
+        policy: policy/manage-volume.mustache
+        mappings:
+          resources:
+            - arn:aws:ec2:{{hosted:region}}:{{hosted:account}}:volume/*
+            - arn:aws:ec2:{{hosted:region}}:{{hosted:account}}:instance/*
+      - name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk-cluster-access
+        policy: policy/msk-cluster-access.mustache
+        mappings:
+          topics:
+            - arn:aws:kafka:{{hosted:region}}:{{hosted:account}}:topic/{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk/*
+          clusters:
+            - arn:aws:kafka:{{hosted:region}}:{{hosted:account}}:cluster/{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk/*
+          groups:
+            - arn:aws:kafka:{{hosted:region}}:{{hosted:account}}:group/{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msk/*
+    tags:
+      "{{hosted:domain}}:resource-type": role
+      "{{hosted:domain}}:category": compute.storage
+      "{{hosted:domain}}:type": analytics
+      "{{hosted:domain}}:component": {{hosted:id}}-druid-access
+      "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"

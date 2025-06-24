@@ -1,0 +1,11 @@
+nodeSelector:
+  "eks.amazonaws.com/nodegroup": {{hosted:id}}-core-node
+settings:
+  clusterName: {{hosted:id}}-eks
+  interruptionQueue: {{hosted:id}}-karpenter
+serviceAccount:
+  create: false
+  name: {{hosted:id}}-karpenter-sa
+serviceMonitor:
+  enabled: false
+logLevel: debug

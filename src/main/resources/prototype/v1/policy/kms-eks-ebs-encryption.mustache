@@ -1,0 +1,22 @@
+[
+  {
+    "Effect": "Allow",
+    "Action": [
+      "kms:CreateGrant",
+      "kms:ListGrants",
+      "kms:RevokeGrant",
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ],
+    "Resource": [ "*" ],
+    "Condition": {
+      "StringEquals": {
+        "aws:PrincipalAccount": "{{ account }}",
+        "kms:RequestAlias": "{{ alias }}"
+      }
+    }
+  }
+]

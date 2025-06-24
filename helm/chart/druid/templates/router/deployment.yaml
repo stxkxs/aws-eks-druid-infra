@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "druid.name" . }}-druid-router
+  labels:
+    {{ include "router.labels" . | indent 4 }}
+  annotations:
+    {{ include "router.annotations" . | indent 4 }}
+spec:
+  replicas: {{ .Values.router.replicas }}
+  selector:
+    matchLabels:
+      {{ include "router.match.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{ include "router.labels" . | indent 8 }}
+        {{ include "router.match.labels" . | nindent 8 }}
+      annotations:
+        {{ include "router.annotations" . | indent 8 }}
+    spec:
+      {{ include "common.security" . | nindent 6 }}
+      nodeSelector:
+        {{ include "router.node.selector" . | nindent 8 }}
+      volumes:
+        {{ include "router.volumes" . | nindent 8 }}
+      containers:
+        - name: {{ include "druid.name" . }}-druid-router
+          {{ include "druid.image" . | nindent 10 }}
+          args: [ "router" ]
+          ports:
+            - name: router
+              containerPort: 9088
+              protocol: TCP
+            - name: prometheus
+              containerPort: 9000
+              protocol: TCP
+          env:
+            {{ include "common.env" . | nindent 12 }}
+          resources:
+            {{ toYaml .Values.router.resources | nindent 12 }}
+          volumeMounts:
+            {{ include "router.volume.mounts" . | nindent 12 }}
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /status/health
+              port: 9088
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /status/health
+              port: 9088
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /status/health
+              port: 9088
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5

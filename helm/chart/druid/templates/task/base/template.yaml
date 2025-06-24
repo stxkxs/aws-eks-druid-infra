@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "druid.name" . }}-druid-task-base-template
+  labels:
+    {{- include "task.base.labels" . | indent 4 }}
+  annotations:
+    {{- include "task.base.annotations" . | indent 4 }}
+data:
+  "task-base.yaml": |
+    apiVersion: v1
+    kind: PodTemplate
+    template:
+      metadata:
+        name: {{ include "druid.name" . }}-druid-task-base-exec
+        labels:
+          {{- include "task.base.labels" . | indent 10 }}
+        annotations:
+          {{- include "task.base.annotations" . | indent 10 }}
+      spec:
+        {{- include "common.security" . | nindent 8 }}
+        nodeSelector:
+          {{- include "task.base.node.selector" . | nindent 10 }}
+        volumes:
+          {{- include "task.base.volumes" . | nindent 10 }}
+        restartPolicy: Never
+        containers:
+          - name:  {{ include "druid.name" . }}-druid-task
+            {{- include "druid.image" . | nindent 12 }}
+            command: [ "sh", "-c", "/peon.sh /var/druid 1" ]
+            ports:
+              - containerPort: 8091
+                name: task-base
+                protocol: TCP
+              - containerPort: 9000
+                name: prometheus
+                protocol: TCP
+            env:
+              {{- include "common.env" . | nindent 14 }}
+            resources:
+              {{- toYaml .Values.task.base.resources | nindent 14 }}
+            volumeMounts:
+              {{- include "task.base.volume.mounts" . | nindent 14 }}

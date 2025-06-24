@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "druid.name" . }}-druid-overlord
+  labels:
+    {{- include "overlord.labels" . | indent 4 }}
+  annotations:
+    {{- include "overlord.annotations" . | indent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: overlord
+      port: 8290
+    - name: prometheus
+      port: 9000
+  selector:
+    {{- include "overlord.labels" . | indent 4 }}
+    {{- include "overlord.match.labels" . | nindent 4 }}

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "druid.name" . }}-druid-broker
+  labels:
+    {{- include "broker.labels" . | indent 4 }}
+  annotations:
+    {{- include "broker.annotations" . | indent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: broker
+      port: 8282
+    - name: prometheus
+      port: 9000
+  selector:
+    {{- include "broker.labels" . | indent 4 }}
+    {{- include "broker.match.labels" . | nindent 4 }}

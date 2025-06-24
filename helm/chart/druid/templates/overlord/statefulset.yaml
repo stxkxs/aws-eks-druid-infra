@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "druid.name" . }}-druid-overlord
+  labels:
+    {{- include "overlord.labels" . | indent 4 }}
+  annotations:
+    {{- include "overlord.annotations" . | indent 4 }}
+spec:
+  serviceName: {{ include "druid.name" . }}-druid-overlord
+  replicas: {{ .Values.overlord.replicas }}
+  selector:
+    matchLabels:
+      {{- include "overlord.match.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "overlord.labels" . | indent 8 }}
+        {{- include "overlord.match.labels" . | nindent 8 }}
+      annotations:
+        {{- include "overlord.annotations" . | indent 8 }}
+    spec:
+      {{- include "common.security" . | nindent 6 }}
+      nodeSelector:
+        {{- include "overlord.node.selector" . | nindent 8 }}
+      volumes:
+        {{- include "overlord.volumes" . | nindent 8 }}
+      containers:
+        - name: {{ include "druid.name" . }}-druid-overlord
+          {{- include "druid.image" . | nindent 10 }}
+          args: [ "overlord" ]
+          ports:
+            - name: overlord
+              containerPort: 8290
+              protocol: TCP
+            - name: prometheus
+              containerPort: 9000
+              protocol: TCP
+          env:
+            {{- include "common.env" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.overlord.resources | nindent 12 }}
+          volumeMounts:
+            {{- include "overlord.volume.mounts" . | nindent 12 }}
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /status/health
+              port: 8290
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /status/health
+              port: 8290
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /status/health
+              port: 8290
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5

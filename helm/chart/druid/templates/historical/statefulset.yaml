@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "druid.name" . }}-druid-historical
+  labels:
+    {{- include "historical.labels" . | indent 4 }}
+  annotations:
+    {{- include "historical.annotations" . | indent 4 }}
+spec:
+  serviceName: {{ include "druid.name" . }}-druid-historical
+  replicas: {{ .Values.historical.replicas }}
+  selector:
+    matchLabels:
+      {{- include "historical.match.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "historical.labels" . | indent 8 }}
+        {{- include "historical.match.labels" . | nindent 8 }}
+      annotations:
+        {{- include "historical.annotations" . | indent 8 }}
+    spec:
+      {{- include "common.security" . | nindent 6 }}
+      nodeSelector:
+        {{- include "historical.node.selector" . | nindent 8 }}
+      volumes:
+        {{- include "historical.volumes" . | nindent 8 }}
+      containers:
+        - name: {{ include "druid.name" . }}-druid-historical
+          {{- include "druid.image" . | nindent 10 }}
+          args: [ "historical" ]
+          ports:
+            - name: historical
+              containerPort: 8283
+              protocol: TCP
+            - name: prometheus
+              containerPort: 9000
+              protocol: TCP
+          env:
+            {{- include "common.env" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.historical.resources | nindent 12 }}
+          volumeMounts:
+            {{- include "historical.volume.mounts" . | nindent 12 }}
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /status/health
+              port: 8283
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /druid/historical/v1/readiness
+              port: 8283
+              scheme: HTTPS
+            initialDelaySeconds: 180
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /druid/historical/v1/readiness
+              port: 8283
+              scheme: "HTTPS"
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 10

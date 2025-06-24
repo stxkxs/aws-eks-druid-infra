@@ -1,0 +1,13 @@
+apiVersion: v2
+appVersion: 0.1.0
+description: apache druid - high performance real-time analytics database
+name: druid
+version: 0.1.0
+home: https://druid.apache.org/
+icon: https://druid.apache.org/img/favicon.png
+sources:
+  - https://github.com/stxkxs/aws-eks-druid-infra
+keywords:
+  - olap
+  - database
+  - analytics

@@ -1,0 +1,124 @@
+indexLogs:
+  name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-indexlogs
+  accessControl: bucket_owner_full_control
+  objectOwnership: bucket_owner_enforced
+  removalPolicy: destroy
+  autoDeleteObjects: true
+  bucketPolicies:
+    - name: {{hosted:id}}-indexlogs
+      policy: policy/bucket-access.mustache
+      principals:
+        - type: arn
+          value: arn:aws:iam::{{hosted:account}}:role/{{hosted:id}}-{{hosted:eks:druid:release}}-druid-sa
+      mappings:
+        resources:
+          - "arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-indexlogs/*"
+          - "arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-indexlogs"
+  lifecycleRules:
+    - id: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-indexlogs-expiration
+      expiration: 1
+      enabled: true
+  tags:
+    "{{hosted:domain}}:resource-type": s3
+    "{{hosted:domain}}:category": storage
+    "{{hosted:domain}}:type": analytics
+    "{{hosted:domain}}:component": {{hosted:id}}-druid-indexlogs
+    "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+
+deepStorage:
+  name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-deepstorage
+  accessControl: bucket_owner_full_control
+  objectOwnership: bucket_owner_enforced
+  removalPolicy: destroy
+  autoDeleteObjects: true
+  bucketPolicies:
+    - name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-deepstorage
+      policy: "policy/bucket-access.mustache"
+      principals:
+        - type: arn
+          value: arn:aws:iam::{{hosted:account}}:role/{{hosted:id}}-{{hosted:eks:druid:release}}-druid-sa
+      mappings:
+        resources:
+          - arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-deepstorage/*
+          - arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-deepstorage
+  lifecycleRules:
+    - id: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-deepstorage-expiration
+      expiration: 1
+      enabled: true
+  tags:
+    "{{hosted:domain}}:resource-type": s3
+    "{{hosted:domain}}:category": storage
+    "{{hosted:domain}}:type": analytics
+    "{{hosted:domain}}:component": {{hosted:id}}-druid-deepstorage
+    "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+
+multiStageQuery:
+  name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-msq
+  accessControl: bucket_owner_full_control
+  objectOwnership: bucket_owner_enforced
+  removalPolicy: destroy
+  autoDeleteObjects: true
+  bucketPolicies:
+    - name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-deepstorage
+      policy: policy/bucket-access.mustache
+      principals:
+        - type: arn
+          value: arn:aws:iam::{{hosted:account}}:role/{{hosted:id}}-{{hosted:eks:druid:release}}-druid-sa
+      mappings:
+        resources:
+          - arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msq/*
+          - arn:aws:s3:::{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msq
+  lifecycleRules:
+    - id: "{{hosted:id}}-{{hosted:eks:druid:release}}-druid-msq-expiration"
+      expiration: 1
+      enabled: true
+  tags:
+    "{{hosted:domain}}:resource-type": s3
+    "{{hosted:domain}}:category": storage
+    "{{hosted:domain}}:type": analytics
+    "{{hosted:domain}}:component": {{hosted:id}}-druid-multi-stage-query
+    "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+
+metadata:
+  name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-metadata
+  credentials:
+    name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-metadata
+    description: "druid deep storage rds username & password"
+    username: druid_metadata_admin
+    password:
+      length: 20
+      excludeNumbers: true
+      excludeLowercase: false
+      excludeUppercase: false
+      includeSpace: false
+      requireEachIncludedType: true
+    removalPolicy: destroy
+  databaseName: druid_metadata
+  version: 15.4
+  storageType: aurora_iopt1
+  writer:
+    name: metadata-writer
+    allowMajorVersionUpgrade: true
+    autoMinorVersionUpgrade: true
+    publiclyAccessible: false
+    performanceInsights:
+      enabled: true
+      retention: default
+  readers:
+    - name: metadata-reader
+      allowMajorVersionUpgrade: true
+      autoMinorVersionUpgrade: true
+      publiclyAccessible: false
+      scaleWithWriter: true
+      performanceInsights:
+        enabled: true
+        retention: default
+  removalPolicy: destroy
+  deletionProtection: false
+  enableDataApi: true
+  tags:
+    "{{hosted:domain}}:resource-type": rds
+    "{{hosted:domain}}:category": storage
+    "{{hosted:domain}}:type": metadata
+    "{{hosted:domain}}:component": {{hosted:id}}-druid-metadata
+    "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"

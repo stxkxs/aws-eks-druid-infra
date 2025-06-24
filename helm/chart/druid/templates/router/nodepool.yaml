@@ -1,0 +1,29 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: {{ include "druid.name" . }}-druid-router-nodepool
+  labels:
+    {{- include "router.labels" . | indent 4 }}
+  annotations:
+    {{- include "router.annotations" . | indent 4 }}
+spec:
+  limits:
+    {{- toYaml .Values.router.node.limits | nindent 4 }}
+  disruption:
+    {{- toYaml .Values.router.node.disruption | nindent 4 }}
+  template:
+    metadata:
+      labels:
+        {{- include "druid.node.labels" . | nindent 8 }}
+        eks.amazonaws.com/nodegroup: {{ include "druid.name" . }}-druid-router-node
+    spec:
+      requirements:
+        - key: "eks.amazonaws.com/nodegroup"
+          operator: In
+          values: [ "{{ include "druid.name" . }}-druid-router-node" ]
+        {{- include "druid.node.requirements" . | nindent 8 }}
+        {{- toYaml .Values.router.node.requirements | nindent 8 }}
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: {{ include "druid.name" . }}-druid-nodeclass

@@ -1,0 +1,7 @@
+nodeSelector:
+  "eks.amazonaws.com/nodegroup": {{hosted:id}}-core-node
+installCRDs: true
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: false

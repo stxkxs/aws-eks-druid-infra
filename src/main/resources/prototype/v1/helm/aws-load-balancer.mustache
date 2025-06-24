@@ -1,0 +1,9 @@
+nodeSelector:
+  "eks.amazonaws.com/nodegroup": {{hosted:id}}-core-node
+clusterName: {{hosted:id}}-eks
+serviceAccount:
+  create: false
+  name: {{hosted:id}}-aws-load-balancer-sa
+enableServiceMutatorWebhook: false
+serviceMonitor:
+  enabled: false

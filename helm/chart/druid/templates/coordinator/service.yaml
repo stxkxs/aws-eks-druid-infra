@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "druid.name" . }}-druid-coordinator
+  labels:
+    {{- include "coordinator.labels" . | indent 4 }}
+  annotations:
+    {{- include "coordinator.annotations" . | indent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: coordinator
+      port: 8281
+    - name: prometheus
+      port: 9000
+  selector:
+    {{- include "coordinator.labels" . | indent 4 }}
+    {{- include "coordinator.match.labels" . | nindent 4 }}

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "druid.name" . }}-druid-task-base-conf
+  labels:
+    {{- include "task.base.labels" . | indent 4 }}
+  annotations:
+    {{- include "task.base.annotations" . | indent 4 }}
+data:
+  "log4j2.xml":
+    {{- .Files.Get "common/log4j2.xml" | toYaml | indent 4 }}
+  "jvm.config":
+    {{- include "task.base.jvm" . | indent 4 }}
+  "runtime.properties":
+    {{- toYaml .Values.runtime | nindent 4 }}
+    {{- toYaml .Values.task.base.runtime | indent 4 }}

@@ -1,0 +1,745 @@
+hostId: "{{host:id}}"
+hostedId: "{{hosted:id}}"
+account: "{{hosted:account}}"
+region: "{{hosted:region}}"
+environment: "{{hosted:environment}}"
+name: "{{hosted:name}}"
+alias: "{{hosted:alias}}"
+version: "{{hosted:version}}"
+domain: "{{hosted:domain}}"
+organization: "{{hosted:organization}}"
+
+image:
+  tag: "{{hosted:version}}"
+  repository: public.ecr.aws/q9l5h9b2/stxkxs.io/v1/docker/druid
+  pullPolicy: Always
+
+labels:
+  "{{hosted:domain}}/account": "{{hosted:account}}"
+  "{{hosted:domain}}/region": "{{hosted:region}}"
+  "{{hosted:domain}}/billing": "{{hosted:organization}}"
+  "{{hosted:domain}}/version": "{{hosted:version}}"
+  "{{hosted:domain}}/resource-type": druid-helm-chart
+  "{{hosted:domain}}/category": compute.storage
+  "{{hosted:domain}}/type": analytics
+  "{{hosted:domain}}/id": "{{hosted:id}}"
+  "{{hosted:domain}}/name": "{{hosted:name}}"
+  "{{hosted:domain}}/part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
+
+annotations:
+  "k8s.grafana.com/scrape": "true"
+  "k8s.grafana.com/metrics.portNumber": "9000"
+
+securityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 1000
+
+runtime: |-
+  # https://druid.apache.org/docs/latest/configuration/
+
+  druid.startup.logging.logProperties=true
+  druid.server.hiddenProperties=["druid.s3.accessKey","druid.s3.secretKey","druid.metadata.storage.connector.password", "password", "key", "token", "pwd"]
+
+  # extensions
+  # https://druid.apache.org/docs/latest/configuration/extensions
+  druid.extensions.loadList=["simple-client-sslcontext", "druid-basic-security", "druid-s3-extensions", "druid-aws-rds-extensions", "postgresql-metadata-storage", "druid-multi-stage-query", "druid-kafka-indexing-service", "prometheus-emitter", "druid-kubernetes-extensions", "druid-kubernetes-overlord-extensions"]
+
+  # authn/authz + default users
+  # https://druid.apache.org/docs/latest/configuration/#authentication-and-authorization
+  # https://druid.apache.org/docs/latest/operations/security-user-auth
+  druid.auth.authenticatorChain=["authn-{{hosted:id}}"]
+  druid.auth.authenticator.authn-{{hosted:id}}.type=basic
+  druid.auth.authorizer.authz-{{hosted:id}}.type=basic
+  druid.auth.authenticator.authn-{{hosted:id}}.skipOnFailure=false
+  druid.auth.authenticator.authn-{{hosted:id}}.credentialsValidator.type=metadata
+  druid.auth.authenticator.authn-{{hosted:id}}.authorizerName=authz-{{hosted:id}}
+  druid.escalator.type=basic
+  druid.escalator.authorizerName=authz-{{hosted:id}}
+  druid.auth.authorizers=["authz-{{hosted:id}}"]
+  druid.auth.authenticator.authn-{{hosted:id}}.initialAdminPassword=${env:DRUID_ADMIN_PASSWORD}
+  druid.escalator.internalClientUsername=${env:DRUID_SYSTEM_USERNAME}
+  druid.escalator.internalClientPassword=${env:DRUID_SYSTEM_PASSWORD}
+  druid.auth.authenticator.authn-{{hosted:id}}.initialInternalClientPassword=${env:DRUID_SYSTEM_PASSWORD}
+
+  # tls
+  # https://druid.apache.org/docs/latest/operations/security-overview
+  # https://druid.apache.org/docs/latest/configuration/#tls
+  # https://druid.apache.org/docs/latest/operations/tls-support/
+  druid.enableTlsPort=true
+  druid.enablePlaintextPort=false
+  druid.server.https.keyStorePath=/opt/druid/conf/druid/cluster/tls/server-keystore.p12
+  druid.server.https.keyStoreType=pkcs12
+  druid.server.https.certAlias=druid-server
+  druid.server.https.keyManagerPassword=changeit
+  druid.server.https.keyStorePassword=changeit
+  druid.server.https.reloadSslContext=true
+  druid.server.https.reloadSslContextSeconds=180
+  druid.server.https.requestClientCertificate=true
+  druid.server.https.trustStoreType=pkcs12
+  druid.server.https.trustStorePath=/opt/druid/conf/druid/cluster/tls/server-truststore.p12
+  druid.server.https.trustStorePassword=changeit
+  druid.server.https.validateHostnames=false
+  druid.client.https.keyStorePath=/opt/druid/conf/druid/cluster/tls/client-keystore.p12
+  druid.client.https.keyStoreType=pkcs12
+  druid.client.https.certAlias=druid-client
+  druid.client.https.keyStorePassword=changeit
+  druid.client.https.keyManagerPassword=changeit
+  druid.client.https.validateHostnames=false
+  druid.client.https.protocol=TLSv1.2
+  druid.client.https.trustStoreType=pkcs12
+  druid.client.https.trustStorePath=/opt/druid/conf/druid/cluster/tls/client-truststore.p12
+  druid.client.https.trustStorePassword=changeit
+
+  # druid kubernetes extensions [zookeeper-less]
+  # https://druid.apache.org/docs/latest/development/extensions-core/kubernetes/
+  druid.discovery.type=k8s
+  druid.zk.service.enabled=false
+  druid.discovery.k8s.clusterIdentifier={{hosted:id}}
+
+  # index storage
+  # https://druid.apache.org/docs/latest/configuration/#task-logging
+  druid.indexer.logs.type=s3
+  druid.indexer.logs.disableAcl=true
+  druid.indexer.logs.s3Prefix=druid/indexing-logs
+  druid.indexer.logs.s3Bucket={{hosted:id}}-{{hosted:eks:druid:release}}-druid-indexlogs
+
+  # metadata storage
+  # https://druid.apache.org/docs/latest/configuration/#metadata-storage
+  druid.metadata.storage.type=postgresql
+  druid.metadata.storage.connector.user=${env:DRUID_METADATA_STORAGE_USERNAME}
+  druid.metadata.storage.connector.password=${env:DRUID_METADATA_STORAGE_PASSWORD}
+  druid.metadata.storage.connector.connectURI=jdbc:postgresql://${env:DRUID_METADATA_STORAGE_HOST}/druid_metadata
+  druid.metadata.storage.connector.createTables=true
+  druid.metadata.storage.tables.base=druid
+  druid.metadata.storage.tables.audit=druid_audit
+  druid.metadata.storage.tables.dataSource=druid_data_source
+  druid.metadata.storage.tables.pendingSegments=druid_pending_segments
+  druid.metadata.storage.tables.segments=druid_segments
+  druid.metadata.storage.tables.rules=druid_rules
+  druid.metadata.storage.tables.config=druid_config
+  druid.metadata.storage.tables.tasks=druid_tasks
+  druid.metadata.storage.tables.taskLog=druid_task_logs
+  druid.metadata.storage.tables.taskLock=druid_task_locks
+  druid.metadata.storage.tables.supervisors=druid_supervisors
+
+  # deep storage
+  # https://druid.apache.org/docs/latest/configuration/#deep-storage
+  druid.storage.type=s3
+  druid.storage.disableAcl=true
+  druid.storage.baseKey=druid/segments
+  druid.storage.bucket={{hosted:id}}-{{hosted:eks:druid:release}}-druid-deepstorage
+
+  # multi-stage query durable storage
+  # https://druid.apache.org/docs/latest/operations/durable-storage/
+  druid.msq.intermediate.storage.enable=true
+  druid.msq.intermediate.storage.tempDir=/var/druid/msq
+  druid.msq.intermediate.storage.cleaner.enabled=true
+  druid.msq.intermediate.storage.type=s3
+  druid.msq.intermediate.storage.prefix=druid/msq
+  druid.msq.intermediate.storage.bucket={{hosted:id}}-{{hosted:eks:druid:release}}-druid-msq
+
+  # monitoring
+  # https://druid.apache.org/docs/latest/configuration/#enabling-metrics
+  druid.emitter=composing
+  druid.emitter.logging.logLevel=debug
+  druid.emitter.composing.emitters=["logging","prometheus"]
+  druid.emitter.prometheus.port=9000
+  druid.emitter.prometheus.strategy=exporter
+  druid.emitter.prometheus.addHostAsLabel=true
+  druid.emitter.prometheus.addServiceAsLabel=true
+
+  druid.monitoring.monitors=["org.apache.druid.java.util.metrics.JvmMonitor", "org.apache.druid.server.metrics.ServiceStatusMonitor"]
+
+env:
+  - name: AWS_REGION
+    value: "{{hosted:region}}"
+  - name: HOSTNAME
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: metadata.name
+  - name: POD_NAME
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: metadata.name
+  - name: POD_NAMESPACE
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: metadata.namespace
+  - name: DRUID_METADATA_STORAGE_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-metadata
+        key: username
+  - name: DRUID_METADATA_STORAGE_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-metadata
+        key: password
+  - name: DRUID_METADATA_STORAGE_DBNAME
+    valueFrom:
+      secretKeyRef:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-metadata
+        key: dbname
+  - name: DRUID_METADATA_STORAGE_HOST
+    valueFrom:
+      secretKeyRef:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-metadata
+        key: host
+  - name: DRUID_METADATA_STORAGE_CONNECT_URI
+    value: jdbc:postgresql://$(DRUID_METADATA_STORAGE_HOST)/$(DRUID_METADATA_STORAGE_DBNAME)
+  - name: DRUID_ADMIN_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-admin
+        key: username
+  - name: DRUID_ADMIN_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-admin
+        key: password
+  - name: DRUID_SYSTEM_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-system
+        key: username
+  - name: DRUID_SYSTEM_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-system
+        key: password
+
+volumes:
+  - name: druid-scratch
+    emptyDir: { }
+  - name: druid-common-conf
+    configMap:
+      name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-common-conf
+  - name: druid-tls
+    secret:
+      secretName: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-tls
+      items:
+        - key: client-keystore.p12
+          path: client-keystore.p12
+        - key: client-truststore.p12
+          path: client-truststore.p12
+        - key: client.crt
+          path: client.crt
+        - key: server-keystore.p12
+          path: server-keystore.p12
+        - key: server-truststore.p12
+          path: server-truststore.p12
+        - key: server.crt
+          path: server.crt
+  - name: druid-credentials
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-secretprovider
+
+volumeMounts:
+  - mountPath: /opt/druid/conf/druid/cluster/_common
+    name: druid-common-conf
+    readOnly: true
+  - mountPath: /opt/druid/conf/druid/cluster/credentials
+    name: druid-credentials
+    readOnly: true
+  - mountPath: /opt/druid/conf/druid/cluster/tls
+    name: druid-tls
+    readOnly: true
+  - mountPath: /var/druid
+    name: druid-scratch
+    readOnly: false
+
+router:
+  metadata:
+    labels: {}
+    annotations:
+      "k8s.grafana.com/job": "integrations/druid-router"
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 250Mi
+    limits:
+      cpu: 1500m
+      memory: 1Gi
+  node:
+    selector:
+      "karpenter.k8s.aws/instance-family": "t3a"
+    limits: {}
+    disruption:
+      consolidateAfter: 5m
+      consolidationPolicy: WhenEmpty
+    requirements:
+      - key: "karpenter.k8s.aws/instance-family"
+        operator: In
+        values: ["t3a", "t3", "m5"]
+      - key: "karpenter.k8s.aws/instance-size"
+        operator: In
+        values: ["medium", "large"]
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["spot", "on-demand"]
+  volumes:
+    - name: druid-router-conf
+      configMap:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-router-conf
+  volumeMounts:
+    - name: druid-router-conf
+      mountPath: /opt/druid/conf/druid/cluster/query/router
+      readOnly: true
+  runtime: |-
+    druid.bindOnHost=false
+    druid.tlsPort=9088
+    druid.service=druid/router
+    druid.router.defaultBrokerServiceName=druid/broker
+    druid.router.tierToBrokerMap={"_default_tier": "druid/broker"}
+    druid.router.defaultRule=_default
+    druid.router.pollPeriod=PT1H
+    druid.router.sql.enable=false
+    druid.router.strategies=[{"type":"timeBoundary"},{"type":"priority"}]
+    druid.router.avatica.balancer.type=rendezvousHash
+    druid.router.managementProxy.enabled=true
+    druid.router.http.numConnections=20
+    druid.router.http.eagerInitialization=false
+    druid.router.http.readTimeout=PT60M
+    druid.router.http.numMaxThreads=32
+    druid.router.http.numRequestsQueued=1000
+    druid.router.http.requestBuffersize=10000
+  jvm: |-
+    -Xms512m
+    -Xmx512m
+    -XX:MaxDirectMemorySize=128m
+broker:
+  metadata:
+    labels: {}
+    annotations:
+      "k8s.grafana.com/job": "integrations/druid-broker"
+  replicas: 1
+  resources:
+    requests:
+      cpu: 1500m
+      memory: 7Gi
+    limits:
+      cpu: 6000m
+      memory: 28Gi
+  node:
+    selector:
+      "karpenter.k8s.aws/instance-family": "m6i"
+    limits: {}
+    disruption:
+      consolidateAfter: 10m
+      consolidationPolicy: WhenEmpty
+    requirements:
+      - key: "karpenter.k8s.aws/instance-family"
+        operator: In
+        values: ["m6i", "m5", "m5n", "c6i"]
+      - key: "karpenter.k8s.aws/instance-size"
+        operator: In
+        values: ["2xlarge", "4xlarge", "8xlarge"]
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["spot", "on-demand"]
+  volumes:
+    - name: druid-broker-conf
+      configMap:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-broker-conf
+  volumeMounts:
+    - name: druid-broker-conf
+      mountPath: /opt/druid/conf/druid/cluster/query/broker
+      readOnly: true
+  runtime: |-
+    druid.bindOnHost=false
+    druid.tlsPort=8282
+    druid.service=druid/broker
+    druid.broker.balancer.type=random
+    druid.broker.select.tier=highestPriority
+    druid.query.scheduler.numThreads=38
+    druid.query.scheduler.laning.strategy=none
+    druid.query.scheduler.prioritization.strategy=manual
+    druid.server.http.numThreads=38
+    druid.server.http.maxIdleTime=PT5M
+    druid.server.http.enableRequestLimit=false
+    druid.server.http.defaultQueryTimeout=300000
+    druid.server.http.maxSubqueryRows=100000
+    druid.server.http.gracefulShutdownTimeout=PT30S
+    druid.server.http.unannouncePropagationDelay=PT0S
+    druid.server.http.maxRequestHeaderSize=10000
+    druid.server.http.enableHSTS=false
+    druid.broker.http.numConnections=20
+    druid.broker.http.eagerInitialization=true
+    druid.broker.http.compressionCodec=gzip
+    druid.broker.http.readTimeout=PT45M
+    druid.broker.http.unusedConnectionTimeout=PT4M
+    druid.broker.http.maxQueuedBytes=62500000
+    druid.broker.http.numMaxThreads=35
+    druid.broker.retryPolicy.numTries=1
+    druid.processing.buffer.sizeBytes=125000000
+    druid.processing.buffer.poolCacheInitialCount=0
+    druid.processing.numMergeBuffers=8
+    druid.processing.fifo=true
+    druid.processing.tmpDir=/var/druid/query/tmp
+    druid.processing.merge.useParallelMergePool=true
+    druid.processing.merge.awaitShutdownMillis=60000
+    druid.processing.merge.targetRunTimeMillis=100
+    druid.processing.merge.initialYieldNumRows=16384
+    druid.processing.merge.smallBatchNumRows=4096
+    druid.sql.enable=true
+    druid.sql.avatica.enable=true
+    druid.sql.avatica.maxConnections=20
+    druid.sql.avatica.maxRowsPerFrame=5000
+    druid.sql.avatica.minRowsPerFrame=100
+    druid.sql.avatica.maxStatementsPerConnection=4
+    druid.sql.avatica.connectionIdleTimeout=PT5M
+    druid.sql.avatica.fetchTimeoutMs=5000
+    druid.sql.http.enable=true
+    druid.sql.planner.maxTopNLimit=100000
+    druid.sql.planner.metadataRefreshPeriod=PT1M
+    druid.sql.planner.metadataColumnTypeMergePolicy=leastRestrictive
+    druid.sql.planner.useApproximateCountDistinct=true
+    druid.sql.planner.useGroupingSetForExactDistinct=false
+    druid.sql.planner.useApproximateTopN=true
+    druid.sql.planner.requireTimeCondition=false
+    druid.sql.planner.sqlTimeZone=UTC
+    druid.sql.planner.metadataSegmentCacheEnable=false
+    druid.sql.planner.metadataSegmentPollPeriod=60000
+    druid.sql.planner.authorizeSystemTablesDirectly=false
+    druid.sql.planner.useNativeQueryExplain=true
+    druid.sql.planner.maxNumericInFilters=-1
+    druid.sql.approxCountDistinct.function=APPROX_COUNT_DISTINCT_BUILTIN
+    druid.broker.cache.useCache=false
+    druid.broker.cache.populateCache=false
+    druid.broker.cache.useResultLevelCache=false
+    druid.broker.cache.populateResultLevelCache=false
+    druid.broker.cache.maxEntrySize=1000000
+    druid.broker.segment.watchRealtimeTasks=true
+    druid.broker.segment.awaitInitializationOnStart=true
+    druid.monitoring.monitors=["org.apache.druid.java.util.metrics.JvmMonitor", "org.apache.druid.java.util.metrics.JvmCpuMonitor", "org.apache.druid.java.util.metrics.JvmThreadsMonitor", "org.apache.druid.server.metrics.HistoricalMetricsMonitor"]
+  jvm: |-
+    -Xms8g
+    -Xmx8g
+    -XX:MaxDirectMemorySize=8g
+coordinator:
+  metadata:
+    labels: {}
+    annotations:
+      "k8s.grafana.com/job": "integrations/druid-coordinator"
+  replicas: 1
+  resources:
+    requests:
+      cpu: 1500m
+      memory: 7Gi
+    limits:
+      cpu: 2500m
+      memory: 12Gi
+  node:
+    selector:
+      "karpenter.k8s.aws/instance-family": "m6i"
+    limits: {}
+    disruption:
+      consolidateAfter: 15m
+      consolidationPolicy: WhenEmpty
+    requirements:
+      - key: "karpenter.k8s.aws/instance-family"
+        operator: In
+        values: ["m6i", "m5", "m5a"]
+      - key: "karpenter.k8s.aws/instance-size"
+        operator: In
+        values: ["xlarge", "2xlarge", "4xlarge"]
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["on-demand", "spot"]
+  volumes:
+    - name: druid-coordinator-conf
+      configMap:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-coordinator-conf
+  volumeMounts:
+    - name: druid-coordinator-conf
+      mountPath: /opt/druid/conf/druid/cluster/master/coordinator-overlord
+      readOnly: true
+  runtime: |-
+    druid.bindOnHost=false
+    druid.tlsPort=8281
+    druid.service=druid/coordinator
+    druid.coordinator.period=PT30S
+    druid.coordinator.period.indexingPeriod=PT1800S
+    druid.coordinator.startDelay=PT30S
+    druid.coordinator.load.timeout=PT60M
+    druid.coordinator.kill.pendingSegments.on=false
+    druid.coordinator.kill.on=false
+    druid.coordinator.kill.period=P1D
+    druid.coordinator.kill.durationToRetain=P90D
+    druid.coordinator.kill.ignoreDurationToRetain=false
+    druid.coordinator.kill.bufferPeriod=P30D
+    druid.coordinator.kill.maxSegments=100
+    druid.coordinator.balancer.strategy=cost
+    druid.coordinator.balancer.cachingCost.awaitInitialization=false
+    druid.coordinator.loadqueuepeon.repeatDelay=PT0.050S
+    druid.coordinator.asOverlord.enabled=false
+    druid.centralizedDatasourceSchema.enabled=false
+    druid.coordinator.period.metadataStoreManagementPeriod=PT1H
+    druid.coordinator.kill.supervisor.on=true
+    druid.coordinator.kill.supervisor.period=P1D
+    druid.coordinator.kill.supervisor.durationToRetain=P90D
+    druid.coordinator.kill.audit.on=true
+    druid.coordinator.kill.audit.period=P1D
+    druid.coordinator.kill.audit.durationToRetain=P90D
+    druid.coordinator.kill.compaction.on=true
+    druid.coordinator.kill.compaction.period=P1D
+    druid.coordinator.kill.rule.on=true
+    druid.coordinator.kill.rule.period=P1D
+    druid.coordinator.kill.rule.durationToRetain=P90D
+    druid.coordinator.kill.datasource.on=true
+    druid.coordinator.kill.datasource.period=P1D
+    druid.coordinator.kill.datasource.durationToRetain=P90D
+    druid.coordinator.segment.awaitInitializationOnStart=true
+    druid.manager.config.pollDuration=PT1M
+    druid.manager.segments.pollDuration=PT1M
+    druid.manager.rules.pollDuration=PT1M
+    druid.manager.rules.defaultRule=_default
+    druid.manager.rules.alertThreshold=PT10M
+  jvm: |-
+    -Xms6g
+    -Xmx6g
+
+overlord:
+  metadata:
+    labels: {}
+    annotations:
+      "k8s.grafana.com/job": "integrations/druid-overlord"
+  replicas: 1
+  resources:
+    requests:
+      cpu: 1500m
+      memory: 7Gi
+    limits:
+      cpu: 2500m
+      memory: 12Gi
+  node:
+    selector:
+      "karpenter.k8s.aws/instance-family": "m6i"
+    limits: {}
+    disruption:
+      consolidateAfter: 15m
+      consolidationPolicy: WhenEmpty
+    requirements:
+      - key: "karpenter.k8s.aws/instance-family"
+        operator: In
+        values: ["m6i", "m5", "m5a"]
+      - key: "karpenter.k8s.aws/instance-size"
+        operator: In
+        values: ["xlarge", "2xlarge", "4xlarge"]
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["on-demand"]
+  volumes:
+    - name: druid-overlord-conf
+      configMap:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-overlord-conf
+        defaultMode: 420
+    - name: druid-task-template
+      configMap:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-task-base-template
+        defaultMode: 420
+  volumeMounts:
+    - name: druid-overlord-conf
+      mountPath: /opt/druid/conf/druid/cluster/master/coordinator-overlord
+      readOnly: true
+    - name: druid-task-template
+      mountPath: /opt/druid/conf/druid/cluster/task/task-base.yaml
+      subPath: task-base.yaml
+      readOnly: true
+  runtime: |-
+    druid.bindOnHost=false
+    druid.tlsPort=8290
+    druid.service=druid/overlord
+    druid.indexer.runner.type=k8s
+    druid.indexer.storage.type=metadata
+    druid.indexer.storage.recentlyFinishedThreshold=PT24H
+    druid.indexer.tasklock.forceTimeChunkLock=true
+    druid.indexer.tasklock.batchSegmentAllocation=true
+    druid.indexer.tasklock.batchAllocationWaitTime=500
+    druid.indexer.queue.maxSize=100
+    druid.indexer.queue.startDelay=PT1M
+    druid.indexer.queue.restartDelay=PT30S
+    druid.indexer.queue.storageSyncRate=PT1M
+    druid.indexer.runner.taskAssignmentTimeout=PT60M
+    druid.indexer.runner.minWorkerVersion="0"
+    druid.indexer.runner.parallelIndexTaskSlotRatio=1
+    druid.indexer.runner.taskCleanupTimeout=PT60M
+    druid.indexer.runner.taskShutdownLinkTimeout=PT60M
+    druid.indexer.runner.pendingTasksRunnerNumThreads=1
+    druid.indexer.runner.maxRetriesBeforeBlacklist=5
+    druid.indexer.runner.workerBlackListBackoffTime=PT60M
+    druid.indexer.runner.workerBlackListCleanupPeriod=PT60M
+    druid.indexer.runner.maxPercentageBlacklistWorkers=20
+    druid.indexer.runner.javaOptsArray=["-XX:+HeapDumpOnOutOfMemoryError"]
+    druid.supervisor.storeStackTrace=false
+    druid.supervisor.healthinessThreshold=3
+    druid.supervisor.unhealthinessThreshold=3
+    druid.supervisor.taskHealthinessThreshold=3
+    druid.supervisor.taskUnhealthinessThreshold=3
+    druid.supervisor.maxStoredExceptionEvents=3
+    druid.supervisor.idleConfig.enabled=false
+    druid.supervisor.idleConfig.inactiveAfterMillis=600000
+    druid.indexer.runner.namespace=druid
+    druid.indexer.runner.debugJobs=false
+    druid.indexer.runner.disableClientProxy=false
+    druid.indexer.runner.maxTaskDuration=PT6H
+    druid.indexer.runner.taskCleanupDelay=P1D
+    druid.indexer.runner.taskCleanupInterval=PT1H
+    druid.indexer.runner.K8sjobLaunchTimeout=PT1H
+    druid.indexer.runner.graceTerminationPeriodSeconds=PT90S
+    druid.indexer.task.encapsulatedTask=true
+    druid.indexer.runner.capacity=10
+    druid.processing.intermediaryData.storage.type=deepstore
+    druid.indexer.runner.k8s.adapter.type=customTemplateAdapter
+    druid.indexer.runner.k8s.podTemplate.base=/opt/druid/conf/druid/cluster/task/task-base.yaml
+    druid.indexer.runner.k8s.podTemplate.index_parallel=/opt/druid/conf/druid/cluster/task/task-base.yaml
+    druid.indexer.runner.k8s.podTemplate.index_kafka=/opt/druid/conf/druid/cluster/task/task-base.yaml
+    druid.indexer.runner.k8s.podTemplate.index_kinesis=/opt/druid/conf/druid/cluster/task/task-base.yaml
+    druid.indexer.runner.k8s.podTemplate.compact=/opt/druid/conf/druid/cluster/task/task-base.yaml
+    druid.indexer.runner.k8s.podTemplate.kill=/opt/druid/conf/druid/cluster/task/task-base.yaml
+    druid.indexer.runner.k8s.podTemplate.query_controller=/opt/druid/conf/druid/cluster/task/task-base.yaml
+  jvm: |-
+    -Xms9g
+    -Xmx9g
+historical:
+  metadata:
+    labels: {}
+    annotations:
+      "k8s.grafana.com/job": "integrations/druid-historical"
+  replicas: 1
+  resources:
+    requests:
+      cpu: 3500m
+      memory: 40Gi
+    limits:
+      cpu: 14000m
+      memory: 120Gi
+  node:
+    selector:
+      "karpenter.k8s.aws/instance-family": "i4i"
+    limits: {}
+    disruption:
+      consolidateAfter: 30m
+      consolidationPolicy: WhenEmpty
+    requirements:
+      - key: "karpenter.k8s.aws/instance-family"
+        operator: In
+        values: ["i4i", "i3", "i3en", "r6i", "r5"]
+      - key: "karpenter.k8s.aws/instance-size"
+        operator: In
+        values: ["2xlarge", "4xlarge", "8xlarge", "12xlarge"]
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["spot", "on-demand"]
+  volumes:
+    - name: druid-historical-conf
+      configMap:
+        name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-historical-conf
+  volumeMounts:
+    - name: druid-historical-conf
+      mountPath: /opt/druid/conf/druid/cluster/data/historical
+      readOnly: true
+  runtime: |-
+    druid.bindOnHost=false
+    druid.tlsPort=8283
+    druid.service=druid/historical
+    druid.server.maxSize=120g
+    druid.server.tier=_default_tier
+    druid.server.priority=0
+    druid.segmentCache.locations=[{"path":"/var/druid/segment-cache","maxSize":"120g"}]
+    druid.segmentCache.locationSelector.strategy=leastBytesUsed
+    druid.segmentCache.deleteOnRemove=true
+    druid.segmentCache.dropSegmentDelayMillis=30000
+    druid.segmentCache.infoDir=/var/druid/segment/info
+    druid.segmentCache.announceIntervalMillis=5000
+    druid.segmentCache.numLoadingThreads=2
+    druid.segmentCache.numBootstrapThreads=2
+    druid.segmentCache.lazyLoadOnStart=false
+    druid.coordinator.loadqueuepeon.curator.numCallbackThreads=2
+    druid.segmentCache.numThreadsToLoadSegmentsIntoPageCacheOnDownload=0
+    druid.segmentCache.numThreadsToLoadSegmentsIntoPageCacheOnBootstrap=0
+    druid.server.http.numThread=42
+    druid.server.http.maxIdleTime=PT5M
+    druid.server.http.enableRequestLimit=false
+    druid.server.http.defaultQueryTimeout=300000
+    druid.server.http.gracefulShutdownTimeout=PT30S
+    druid.server.http.unannouncePropagationDelay=PT0S
+    druid.server.http.maxRequestHeaderSize=10000
+    druid.processing.buffer.sizeBytes=125000000
+    druid.processing.formatString=processing-%s
+    druid.processing.numMergeBuffers=3
+    druid.processing.numThreads=12
+    druid.processing.fifo=true
+    druid.processing.tmpDir=/var/druid/query/tmp
+    druid.historical.cache.useCache=false
+    druid.historical.cache.populateCache=false
+    druid.historical.cache.maxEntrySize=1000000
+    druid.monitoring.monitors=["org.apache.druid.java.util.metrics.JvmMonitor", "org.apache.druid.java.util.metrics.JvmCpuMonitor", "org.apache.druid.java.util.metrics.JvmThreadsMonitor", "org.apache.druid.server.metrics.HistoricalMetricsMonitor"]
+  jvm: |-
+    -Xms8g
+    -Xmx8g
+    -XX:MaxDirectMemorySize=40g
+task:
+  base:
+    metadata:
+      labels: {}
+      annotations:
+        "k8s.grafana.com/job": "integrations/druid-task"
+    resources:
+      requests:
+        cpu: 7000m
+        memory: 58Gi
+      limits:
+        cpu: 14000m
+        memory: 116Gi
+    node:
+      selector:
+        "karpenter.k8s.aws/instance-family": "i4i"
+      limits: {}
+      disruption:
+        consolidateAfter: 5m
+        consolidationPolicy: WhenEmpty
+      requirements:
+        - key: "karpenter.k8s.aws/instance-family"
+          operator: In
+          values: ["i4i", "i3", "i3en", "c6i", "c5", "m6i"]
+        - key: "karpenter.k8s.aws/instance-size"
+          operator: In
+          values: ["4xlarge", "8xlarge", "12xlarge", "16xlarge"]
+        - key: "karpenter.sh/capacity-type"
+          operator: In
+          values: ["spot", "on-demand"]
+    volumes:
+      - name: task-conf
+        configMap:
+          name: {{hosted:id}}-{{hosted:eks:druid:release}}-druid-task-base-conf
+          defaultMode: 420
+    volumeMounts:
+      - name: task-conf
+        mountPath: /opt/druid/conf/druid/cluster/master/coordinator-overlord
+        readOnly: true
+    runtime: |-
+      druid.bindOnHost=false
+      druid.tlsPort=8091
+      druid.peon.mode=remote
+      druid.service=druid/peon
+      druid.server.http.numThreads=36
+      druid.indexer.runner.type=k8s
+      druid.indexer.task.encapsulatedTask=true
+      druid.indexer.task.baseTaskDir=/var/druid/task
+    jvm: |-
+      -server
+      -XX:+UseG1GC
+      -XX:+ExitOnOutOfMemoryError
+      -Duser.timezone=UTC
+      -Dfile.encoding=UTF-8
+      -Djava.io.tmpdir=/var/druid
+      -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
