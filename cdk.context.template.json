@@ -27,7 +27,6 @@
   "hosted:eks:grafana:tempoHost":"https://tempo-prod-000-prod-us-west-0.grafana.net/tempo",
   "hosted:eks:grafana:tempoUsername":"000000",
   "hosted:eks:grafana:pyroscopeHost":"https://profiles-prod-000.grafana.net:443",
-  "hosted:eks:grafana:fleetManagementHost":"https://fleet-management-prod-000.grafana.net",
 
   "hosted:eks:druid:release":  "streaming",
 

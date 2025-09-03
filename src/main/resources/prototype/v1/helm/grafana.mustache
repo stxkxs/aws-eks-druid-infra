@@ -1,5 +1,6 @@
 cluster:
   name: "{{hosted:id}}-eks"
+
 destinations:
   - name: grafana-cloud-metrics
     type: prometheus
@@ -36,6 +37,7 @@ destinations:
       type: basic
       username: "{{hosted:eks:grafana:instanceId}}"
       password: {{hosted:eks:grafana:key}}
+
 clusterMetrics:
   enabled: true
   opencost:
@@ -50,16 +52,22 @@ clusterMetrics:
           url: {{hosted:eks:grafana:prometheusHost}}/api/prom
   kepler:
     enabled: true
+
 annotationAutodiscovery:
   enabled: true
+
 prometheusOperatorObjects:
   enabled: true
+
 clusterEvents:
   enabled: true
+
 nodeLogs:
   enabled: true
+
 podLogs:
   enabled: true
+
 applicationObservability:
   enabled: true
   receivers:
@@ -76,10 +84,13 @@ applicationObservability:
   connectors:
     grafanaCloudMetrics:
       enabled: true
+
 autoInstrumentation:
   enabled: true
+
 profiling:
   enabled: true
+
 alloy-metrics:
   enabled: true
   alloy:
@@ -98,13 +109,7 @@ alloy-metrics:
             fieldPath: metadata.name
       - name: GCLOUD_FM_COLLECTOR_ID
         value: grafana-k8s-monitoring-$(CLUSTER_NAME)-$(NAMESPACE)-$(POD_NAME)
-  remoteConfig:
-    enabled: true
-    url: {{hosted:eks:grafana:fleetManagementHost}}
-    auth:
-      type: basic
-      username: "{{hosted:eks:grafana:instanceId}}"
-      passwordFrom: sys.env("GCLOUD_RW_API_KEY")
+
 alloy-singleton:
   enabled: true
   alloy:
@@ -123,13 +128,7 @@ alloy-singleton:
             fieldPath: metadata.name
       - name: GCLOUD_FM_COLLECTOR_ID
         value: grafana-k8s-monitoring-$(CLUSTER_NAME)-$(NAMESPACE)-$(POD_NAME)
-  remoteConfig:
-    enabled: true
-    url: {{hosted:eks:grafana:fleetManagementHost}}
-    auth:
-      type: basic
-      username: "{{hosted:eks:grafana:instanceId}}"
-      passwordFrom: sys.env("GCLOUD_RW_API_KEY")
+
 alloy-logs:
   enabled: true
   alloy:
@@ -152,13 +151,7 @@ alloy-logs:
             fieldPath: spec.nodeName
       - name: GCLOUD_FM_COLLECTOR_ID
         value: grafana-k8s-monitoring-$(CLUSTER_NAME)-$(NAMESPACE)-alloy-logs-$(NODE_NAME)
-  remoteConfig:
-    enabled: true
-    url: {{hosted:eks:grafana:fleetManagementHost}}
-    auth:
-      type: basic
-      username: "{{hosted:eks:grafana:instanceId}}"
-      passwordFrom: sys.env("GCLOUD_RW_API_KEY")
+
 alloy-receiver:
   enabled: true
   alloy:
@@ -194,13 +187,7 @@ alloy-receiver:
             fieldPath: spec.nodeName
       - name: GCLOUD_FM_COLLECTOR_ID
         value: grafana-k8s-monitoring-$(CLUSTER_NAME)-$(NAMESPACE)-alloy-receiver-$(NODE_NAME)
-  remoteConfig:
-    enabled: true
-    url: {{hosted:eks:grafana:fleetManagementHost}}
-    auth:
-      type: basic
-      username: "{{hosted:eks:grafana:instanceId}}"
-      passwordFrom: sys.env("GCLOUD_RW_API_KEY")
+
 alloy-profiles:
   enabled: true
   alloy:
@@ -223,10 +210,3 @@ alloy-profiles:
             fieldPath: spec.nodeName
       - name: GCLOUD_FM_COLLECTOR_ID
         value: grafana-k8s-monitoring-$(CLUSTER_NAME)-$(NAMESPACE)-alloy-profiles-$(NODE_NAME)
-  remoteConfig:
-    enabled: true
-    url: {{hosted:eks:grafana:fleetManagementHost}}
-    auth:
-      type: basic
-      username: "{{hosted:eks:grafana:instanceId}}"
-      passwordFrom: sys.env("GCLOUD_RW_API_KEY")

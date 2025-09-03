@@ -129,7 +129,6 @@ service) cluster with managed addons, custom helm charts, observability integrat
       "hosted:eks:grafana:tempoHost": "https://tempo-prod-000-prod-us-west-0.grafana.net/tempo",
       "hosted:eks:grafana:tempoUsername": "000000",
       "hosted:eks:grafana:pyroscopeHost": "https://profiles-prod-000.grafana.net:443",
-      "hosted:eks:grafana:fleetManagementHost": "https://fleet-management-prod-000.grafana.net",
       ```
 
       these configuration values integrate your eks cluster with grafana cloud for comprehensive observability:
@@ -167,7 +166,6 @@ service) cluster with managed addons, custom helm charts, observability integrat
             - `pyroscopeHost`: In Grafana Cloud UI, navigate to Profiles > Connect a data source. This endpoint is used
               for
               continuous profiling.
-            - `fleetManagementHost`: Available in your stack settings, this is used for managing agents.
 
       these values are used by the grafana kubernetes monitoring helm chart (k8s-monitoring) to configure the grafana
       agent

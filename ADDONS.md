@@ -22,4 +22,5 @@ the eks cluster comes equipped with a comprehensive set of addons and features
 | **aws secrets store provider**   | aws-secrets-store | aws provider for csi secrets store. enables pods to access aws secrets manager and ssm parameter store                                                 |
 | **karpenter**                    | kube-system       | advanced kubernetes autoscaler. manages node provisioning and termination. scales nodes based on pending pods. uses sqs for node interruption handling |
 | **aws load balancer controller** | aws-load-balancer | manages aws elastic load balancers for kubernetes services. handles aws alb and nlb resources. provides support for ingress and service resources      |
-| **grafana k8s-monitoring**       | monitoring        | deploys grafana agent for complete observability. collects metrics, logs, and traces. integrates with grafana cloud                                    |
+| **alloy-operator**               | alloy-system      | grafana alloy operator for managing alloy instances. provides custom resources and crds required by k8s-monitoring chart v3+                           |
+| **grafana k8s-monitoring**       | monitoring        | deploys grafana alloy agents for complete observability. collects metrics, logs, and traces. integrates with grafana cloud                             |
