@@ -2,7 +2,7 @@ managed:
   # https://docs.aws.amazon.com/eks/latest/userguide/eks-add-ons.html#workloads-add-ons-available-eks
   awsVpcCni:
     name: vpc-cni
-    version: v1.19.6-eksbuild.1
+    version: v1.20.1-eksbuild.3
     preserveOnDelete: false
     resolveConflicts: preserve
     serviceAccount:
@@ -29,7 +29,7 @@ managed:
           "{{hosted:domain}}:part-of": "{{hosted:organization}}.{{hosted:name}}.{{hosted:alias}}"
   awsEbsCsi:
     name: aws-ebs-csi-driver
-    version: v1.44.0-eksbuild.1
+    version: v1.48.0-eksbuild.1
     preserveOnDelete: false
     resolveConflicts: preserve
     serviceAccount:
@@ -70,22 +70,22 @@ managed:
       removalPolicy: destroy
   kubeProxy:
     name: kube-proxy
-    version: v1.33.0-eksbuild.2
+    version: v1.33.3-eksbuild.6
     preserveOnDelete: false
     resolveConflicts: overwrite
   coreDns:
     name: coredns
-    version: v1.12.1-eksbuild.2
+    version: v1.12.3-eksbuild.1
     preserveOnDelete: false
     resolveConflicts: overwrite
   podIdentityAgent:
     name: eks-pod-identity-agent
-    version: v1.3.7-eksbuild.2
+    version: v1.3.8-eksbuild.2
     preserveOnDelete: false
     resolveConflicts: overwrite
   containerInsights:
     name: amazon-cloudwatch-observability
-    version: v4.1.0-eksbuild.1
+    version: v4.3.1-eksbuild.1
     preserveOnDelete: false
     resolveConflicts: overwrite
     serviceAccount:
@@ -116,7 +116,7 @@ certManager:
     name: cert-manager
     repository: https://charts.jetstack.io
     release: cert-manager
-    version: v1.17.1
+    version: v1.18.2
     namespace: cert-manager
     values: helm/cert-manager.mustache
 csiSecretsStore:
@@ -140,7 +140,7 @@ karpenter:
     name: karpenter
     repository: oci://public.ecr.aws/karpenter/karpenter
     release: karpenter
-    version: 1.5.0
+    version: 1.6.3
     namespace: kube-system
     values: helm/karpenter.mustache
   podIdentity:
@@ -183,7 +183,7 @@ awsLoadBalancer:
     name: aws-load-balancer-controller
     repository: https://aws.github.io/eks-charts
     release: aws-load-balancer-controller
-    version: 1.11.0
+    version: 1.13.4
     namespace: aws-load-balancer
     values: helm/aws-load-balancer.mustache
   serviceAccount:

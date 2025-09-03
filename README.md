@@ -142,9 +142,19 @@ service) cluster with managed addons, custom helm charts, observability integrat
         2. **retrieving grafana cloud values**:
             - `instanceId`: Found in your Grafana Cloud stack details page. This is a unique identifier for your Grafana
               instance.
-            - `key`: Create an API key with appropriate permissions in the "API Keys" section of your Grafana Cloud
-              account.
-              This key is used for authentication and should start with "glc_".
+            - `key`: Create an API key with the following permissions in the "API Keys" section of your Grafana Cloud
+              account. This key is used for authentication and should start with "glc_":
+              
+              **Required permissions:**
+              - `metrics`: Read and Write access (for Prometheus metrics ingestion)
+              - `logs`: Read and Write access (for Loki log ingestion)
+              - `traces`: Read and Write access (for Tempo trace ingestion)
+              - `profiles`: Read and Write access (for Pyroscope profiling data ingestion)
+              - `alerts`: Read and Write access (for alerting configuration)
+              - `rules`: Read and Write access (for recording and alerting rules)
+              
+              Note: While Grafana recommends using separate keys with minimal permissions for security, this 
+              deployment requires write access to multiple services for the k8s-monitoring helm chart to function properly.
             - `lokiHost` and `lokiUsername`: In Grafana Cloud UI, navigate to Logs > Data Sources > Loki details. The
               lokiHost
               is the endpoint URL for sending logs, and the lokiUsername is your account identifier.

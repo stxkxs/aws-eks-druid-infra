@@ -3,7 +3,7 @@ RUN apk add --no-cache curl
 WORKDIR /extensions
 RUN curl -L -o /extensions/aws-msk-iam-auth-2.3.2-all.jar https://repo1.maven.org/maven2/software/amazon/msk/aws-msk-iam-auth/2.3.2/aws-msk-iam-auth-2.3.2-all.jar
 
-FROM apache/druid:33.0.0
+FROM apache/druid:34.0.0
 ENV DRUID_SET_HOST_IP=1
 COPY --from=extensions /extensions/aws-msk-iam-auth-2.3.2-all.jar /opt/druid/extensions/druid-kafka-indexing-service
 COPY --from=extensions /extensions/aws-msk-iam-auth-2.3.2-all.jar /opt/druid/extensions/druid-kafka-extraction-namespace
