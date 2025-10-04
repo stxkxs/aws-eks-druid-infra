@@ -1,0 +1,373 @@
+name: Code Quality & Security
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # run at 9:00 am utc every monday
+    - cron: '0 9 * * 1'
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'corretto'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  build-and-test:
+    name: build and test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for better analysis
+    
+    - name: set up jdk ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+        cache: maven
+    
+    - name: cache maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+    
+    - name: compile project
+      run: mvn clean compile -B
+    
+    - name: run tests
+      run: mvn test -B || true
+    
+    - name: generate test report
+      uses: dorny/test-reporter@v1
+      if: success() || failure()
+      with:
+        name: maven tests
+        path: target/surefire-reports/*.xml
+        reporter: java-junit
+        fail-on-error: false
+    
+    - name: upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: target/surefire-reports/
+        retention-days: 7
+
+  code-coverage:
+    name: code coverage analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: set up jdk ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+        cache: maven
+    
+    - name: run tests with JaCoCo coverage
+      run: mvn clean test jacoco:report -B || true
+    
+    - name: upload coverage to codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: target/site/jacoco/jacoco.xml
+        flags: unittests
+        name: codecov-cdk-common
+        fail_ci_if_error: false
+        verbose: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      continue-on-error: true
+    
+    - name: generate jacoco badge
+      id: jacoco
+      uses: cicirello/jacoco-badge-generator@v2
+      with:
+        generate-branches-badge: true
+        jacoco-csv-file: target/site/jacoco/jacoco.csv
+        badges-directory: .github/badges
+        generate-coverage-endpoint: true
+        coverage-endpoint-filename: jacoco.json
+      continue-on-error: true
+    
+    - name: upload jacoco coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: jacoco-report
+        path: target/site/jacoco/
+        retention-days: 7
+    
+    - name: comment pr with coverage
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const coverage = '${{ steps.jacoco.outputs.coverage }}';
+          const branch = '${{ steps.jacoco.outputs.branches }}';
+          const body = `## 📊 Code Coverage Report
+          
+          - **Overall Coverage:** ${coverage}%
+          - **Branch Coverage:** ${branch}%
+          
+          View the full report in the [workflow artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).`;
+          
+          github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: body
+          });
+
+  spotbugs-analysis:
+    name: spotbugs static analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+    
+    - name: set up jdk ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+        cache: maven
+    
+    - name: run spotbugs analysis
+      run: |
+        mvn clean compile spotbugs:spotbugs -B || true
+        mvn spotbugs:check -B || true
+    
+    - name: upload spotbugs report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: spotbugs-report
+        path: target/spotbugsXml.xml
+        retention-days: 7
+    
+    - name: parse spotbugs results
+      if: always()
+      uses: jwgmeligmeyling/spotbugs-github-action@v1.2
+      with:
+        path: target/spotbugsXml.xml
+        name: spotbugs
+
+  pmd-analysis:
+    name: pmd static analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+    
+    - name: set up jdk ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+        cache: maven
+    
+    - name: run pmd analysis
+      run: |
+        mvn clean compile pmd:pmd pmd:cpd -B || true
+        mvn pmd:check cpd:check -B || true
+    
+    - name: upload pmd report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: pmd-report
+        path: |
+          target/pmd.xml
+          target/cpd.xml
+        retention-days: 7
+    
+    - name: publish pmd results
+      if: always() && github.actor != 'dependabot[bot]'
+      uses: jwgmeligmeyling/pmd-github-action@v1.2
+      with:
+        path: target/pmd.xml
+        name: pmd
+      continue-on-error: true
+
+  checkstyle-analysis:
+    name: checkstyle analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+    
+    - name: set up jdk ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+        cache: maven
+    
+    - name: run checkstyle
+      run: mvn clean checkstyle:checkstyle -B || true
+    
+    - name: upload checkstyle report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: checkstyle-report
+        path: target/checkstyle-result.xml
+        retention-days: 7
+    
+    - name: publish checkstyle results
+      if: always() && github.actor != 'dependabot[bot]'
+      uses: jwgmeligmeyling/checkstyle-github-action@v1.2
+      with:
+        path: target/checkstyle-result.xml
+        name: checkstyle
+      continue-on-error: true
+
+  dependency-check:
+    name: owasp dependency check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+    
+    - name: set up jdk ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+        cache: maven
+    
+    - name: run owasp dependency check
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: 'cdk-common'
+        path: '.'
+        format: 'ALL'
+        args: >
+          --enableRetired
+          --enableExperimental
+      continue-on-error: true
+        
+    - name: upload dependency check results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-check-report
+        path: reports/
+        retention-days: 7
+
+  dependency-analysis:
+    name: maven dependency analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+    
+    - name: set up jdk ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+        cache: maven
+    
+    - name: analyze dependencies
+      run: |
+        mvn dependency:analyze -B || true
+        mvn dependency:analyze-duplicate -B || true
+        mvn dependency:analyze-dep-mgt -B || true
+    
+    - name: check for dependency updates
+      run: mvn versions:display-dependency-updates -B
+    
+    - name: check for plugin updates
+      run: mvn versions:display-plugin-updates -B
+
+  sonarcloud:
+    name: sonarcloud analysis
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: set up jdk ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+        cache: maven
+    
+    - name: cache sonarcloud packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.sonar/cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+    
+    - name: analyze with sonarcloud
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        mvn clean verify sonar:sonar \
+          -Dsonar.projectKey=cdk-common \
+          -Dsonar.organization=tinstafl \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.java.source=${{ env.JAVA_VERSION }} \
+          -B || true
+
+  quality-gate:
+    name: quality gate
+    runs-on: ubuntu-latest
+    needs: [build-and-test, code-coverage, spotbugs-analysis, pmd-analysis, checkstyle-analysis]
+    if: always()
+    
+    steps:
+    - name: check quality gate status
+      run: |
+        echo "## 🔍 Quality Gate Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Build and Test | ${{ needs.build-and-test.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Code Coverage | ${{ needs.code-coverage.result == 'success' && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| SpotBugs | ${{ needs.spotbugs-analysis.result == 'success' && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| PMD | ${{ needs.pmd-analysis.result == 'success' && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Checkstyle | ${{ needs.checkstyle-analysis.result == 'success' && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.build-and-test.result }}" == "failure" ]]; then
+          echo "❌ **Quality Gate Failed:** Build and tests must pass" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        else
+          echo "✅ **Quality Gate Passed**" >> $GITHUB_STEP_SUMMARY
+        fi

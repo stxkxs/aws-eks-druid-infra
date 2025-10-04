@@ -1,0 +1,69 @@
+# Configuration for GitHub labeler action
+# Automatically applies labels to PRs based on file changes
+
+documentation:
+  - '**/*.md'
+  - 'docs/**/*'
+  - 'README.md'
+
+dependencies:
+  - 'pom.xml'
+  - '**/pom.xml'
+  - 'package.json'
+  - 'package-lock.json'
+  - 'requirements.txt'
+  - 'go.mod'
+  - 'go.sum'
+
+github-actions:
+  - '.github/**/*'
+  - '.github/workflows/**/*'
+
+java:
+  - '**/*.java'
+  - 'src/main/java/**/*'
+  - 'src/test/java/**/*'
+
+resources:
+  - 'src/main/resources/**/*'
+  - 'src/test/resources/**/*'
+
+test:
+  - 'src/test/**/*'
+  - '**/*Test.java'
+  - '**/*Tests.java'
+  - '**/test/**/*'
+
+build:
+  - 'pom.xml'
+  - 'Dockerfile'
+  - '.dockerignore'
+  - 'Makefile'
+  - 'build.gradle'
+  - 'settings.gradle'
+
+config:
+  - '**/*.yml'
+  - '**/*.yaml'
+  - '**/*.json'
+  - '**/*.properties'
+  - '**/*.xml'
+  - '.gitignore'
+  - '.editorconfig'
+
+cdk:
+  - '**/cdk/**/*'
+  - '**/*Stack.java'
+  - '**/*Construct.java'
+
+security:
+  - '**/security/**/*'
+  - '**/auth/**/*'
+  - '**/crypto/**/*'
+  - '.github/dependabot.yml'
+
+infrastructure:
+  - '**/infra/**/*'
+  - '**/infrastructure/**/*'
+  - '**/deploy/**/*'
+  - '**/deployment/**/*'

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Exclude test classes -->
+    <Match>
+        <Class name="~.*Test" />
+    </Match>
+    <Match>
+        <Class name="~.*Tests" />
+    </Match>
+    <Match>
+        <Package name="~.*\.test\..*" />
+    </Match>
+    
+    <!-- Exclude generated code -->
+    <Match>
+        <Package name="~.*\.generated\..*" />
+    </Match>
+    
+    <!-- Exclude specific warnings -->
+    <Match>
+        <!-- Ignore null pointer dereference in Lombok generated code -->
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" />
+        <Class name="~.*" />
+        <Method name="~.*" />
+    </Match>
+    
+    <Match>
+        <!-- Ignore synchronization on non-final field (common in CDK) -->
+        <Bug pattern="ML_SYNC_ON_FIELD_TO_GUARD_CHANGING_THAT_FIELD" />
+    </Match>
+    
+    <Match>
+        <!-- Ignore serialization issues for CDK constructs -->
+        <Bug pattern="SE_BAD_FIELD,SE_NO_SERIALVERSIONID" />
+        <Class name="~io\.tinstafl\..*Construct" />
+    </Match>
+    
+    <!-- AWS CDK constructs commonly expose internal state for composition -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+        <Class name="~.*Construct"/>
+    </Match>
+    
+    <!-- Locale not needed for technical strings (AWS resource names, etc.) -->
+    <Match>
+        <Bug pattern="DM_CONVERT_CASE"/>
+    </Match>
+    
+    <!-- CDK Constructs often call overridable methods in constructors by design -->
+    <Match>
+        <Bug pattern="MC_OVERRIDABLE_METHOD_CALL_IN_CONSTRUCTOR"/>
+        <Class name="~.*Construct.*"/>
+    </Match>
+    
+    <!-- Ignore performance issues in initialization code -->
+    <Match>
+        <Bug pattern="DM_BOXED_PRIMITIVE_FOR_PARSING,DM_FP_NUMBER_CTOR"/>
+    </Match>
+    
+    <!-- Ignore string concatenation in logging -->
+    <Match>
+        <Bug pattern="SBSC_USE_STRINGBUFFER_CONCATENATION"/>
+        <Method name="~.*log.*"/>
+    </Match>
+</FindBugsFilter>

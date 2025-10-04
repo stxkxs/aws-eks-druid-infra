@@ -1,0 +1,287 @@
+name: Scheduled Maintenance
+
+on:
+  schedule:
+    # Run every Sunday at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'corretto'
+
+jobs:
+  cleanup-artifacts:
+    name: Cleanup Old Artifacts
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Delete old workflow runs
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const days = 30;
+          const ms_per_day = 86400000;
+          const now = Date.now();
+          const cutoff = new Date(now - (days * ms_per_day)).toISOString();
+          
+          console.log(`Deleting workflow runs older than ${days} days (${cutoff})`);
+          
+          const workflows = await github.rest.actions.listRepoWorkflows({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          });
+          
+          let deleted_count = 0;
+          for (const workflow of workflows.data.workflows) {
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: workflow.id,
+              per_page: 100,
+            });
+            
+            for (const run of runs.data.workflow_runs) {
+              if (run.created_at < cutoff) {
+                await github.rest.actions.deleteWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: run.id,
+                });
+                deleted_count++;
+                console.log(`Deleted run ${run.id} from ${run.created_at}`);
+              }
+            }
+          }
+          
+          console.log(`Deleted ${deleted_count} old workflow runs`);
+          
+          // Add to summary
+          core.summary
+            .addHeading('🧹 Cleanup Results', 2)
+            .addRaw(`Deleted ${deleted_count} workflow runs older than ${days} days`)
+            .write();
+
+  check-stale-issues:
+    name: Check for Stale Issues
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Find stale issues
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const days_until_stale = 60;
+          const days_until_close = 7;
+          const ms_per_day = 86400000;
+          const now = Date.now();
+          const stale_date = new Date(now - (days_until_stale * ms_per_day)).toISOString();
+          
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            sort: 'updated',
+            direction: 'asc',
+            per_page: 100,
+          });
+          
+          let stale_count = 0;
+          const stale_issues = [];
+          
+          for (const issue of issues.data) {
+            // Skip pull requests
+            if (issue.pull_request) continue;
+            
+            // Skip issues with certain labels
+            const exemptLabels = ['pinned', 'security', 'bug'];
+            if (issue.labels.some(label => exemptLabels.includes(label.name))) continue;
+            
+            if (issue.updated_at < stale_date) {
+              stale_count++;
+              stale_issues.push({
+                number: issue.number,
+                title: issue.title,
+                updated: issue.updated_at,
+                url: issue.html_url
+              });
+              
+              // Add stale label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['stale']
+              });
+              
+              // Add comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `This issue has been automatically marked as stale because it has not had recent activity. It will be closed in ${days_until_close} days if no further activity occurs. Thank you for your contributions.`
+              });
+            }
+          }
+          
+          // Create summary
+          core.summary
+            .addHeading('📋 Stale Issues Report', 2)
+            .addRaw(`Found ${stale_count} stale issues (no activity in ${days_until_stale} days)`)
+            .addBreak();
+          
+          if (stale_issues.length > 0) {
+            const tableData = [
+              ['Issue', 'Title', 'Last Updated'],
+              ...stale_issues.map(i => [
+                `#${i.number}`,
+                i.title.substring(0, 50) + (i.title.length > 50 ? '...' : ''),
+                new Date(i.updated).toLocaleDateString()
+              ])
+            ];
+            core.summary.addTable(tableData);
+          }
+          
+          core.summary.write();
+
+  cache-cleanup:
+    name: Cache Cleanup
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Cleanup caches
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const caches = await github.rest.actions.getActionsCacheList({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            per_page: 100,
+          });
+          
+          // Sort caches by last accessed time
+          const sorted_caches = caches.data.actions_caches.sort((a, b) => 
+            new Date(a.last_accessed_at) - new Date(b.last_accessed_at)
+          );
+          
+          // Keep only the most recent 10 caches
+          const caches_to_delete = sorted_caches.slice(0, -10);
+          
+          let deleted_size = 0;
+          for (const cache of caches_to_delete) {
+            await github.rest.actions.deleteActionsCacheById({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              cache_id: cache.id,
+            });
+            deleted_size += cache.size_in_bytes;
+            console.log(`Deleted cache: ${cache.key}`);
+          }
+          
+          const size_mb = (deleted_size / (1024 * 1024)).toFixed(2);
+          
+          core.summary
+            .addHeading('💾 Cache Cleanup', 2)
+            .addRaw(`Deleted ${caches_to_delete.length} old caches`)
+            .addRaw(`Freed up ${size_mb} MB of storage`)
+            .write();
+
+  repository-stats:
+    name: Repository Statistics
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Gather repository statistics
+      run: |
+        echo "## 📊 Repository Statistics" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Count files by type
+        echo "### File Statistics:" >> $GITHUB_STEP_SUMMARY
+        echo "| File Type | Count |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Java files | $(find . -name "*.java" -type f | wc -l) |" >> $GITHUB_STEP_SUMMARY
+        echo "| XML files | $(find . -name "*.xml" -type f | wc -l) |" >> $GITHUB_STEP_SUMMARY
+        echo "| YAML files | $(find . -name "*.yml" -o -name "*.yaml" -type f | wc -l) |" >> $GITHUB_STEP_SUMMARY
+        echo "| Markdown files | $(find . -name "*.md" -type f | wc -l) |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Git statistics
+        echo "### Git Statistics:" >> $GITHUB_STEP_SUMMARY
+        echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Total commits | $(git rev-list --all --count) |" >> $GITHUB_STEP_SUMMARY
+        echo "| Contributors | $(git shortlog -sn --all | wc -l) |" >> $GITHUB_STEP_SUMMARY
+        echo "| Branches | $(git branch -r | wc -l) |" >> $GITHUB_STEP_SUMMARY
+        echo "| Tags | $(git tag | wc -l) |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Code statistics
+        echo "### Code Statistics:" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        find . -name "*.java" -type f -exec wc -l {} + | sort -rn | head -10 >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "*Top 10 largest Java files by line count*" >> $GITHUB_STEP_SUMMARY
+
+  health-check:
+    name: Repository Health Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: ${{ env.JAVA_DISTRIBUTION }}
+        cache: maven
+    
+    - name: Run health checks
+      run: |
+        echo "## 🏥 Repository Health Check" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check if build works
+        echo "### Build Status:" >> $GITHUB_STEP_SUMMARY
+        if mvn clean compile -B; then
+          echo "✅ Build successful" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Build failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check for TODO comments
+        echo "### TODO Comments:" >> $GITHUB_STEP_SUMMARY
+        TODO_COUNT=$(grep -r "TODO" --include="*.java" . | wc -l || echo "0")
+        echo "Found $TODO_COUNT TODO comments in Java files" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check for FIXME comments
+        echo "### FIXME Comments:" >> $GITHUB_STEP_SUMMARY
+        FIXME_COUNT=$(grep -r "FIXME" --include="*.java" . | wc -l || echo "0")
+        echo "Found $FIXME_COUNT FIXME comments in Java files" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check documentation
+        echo "### Documentation Check:" >> $GITHUB_STEP_SUMMARY
+        if [ -f "README.md" ]; then
+          echo "✅ README.md exists" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ README.md not found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -d "docs" ]; then
+          echo "✅ docs/ directory exists" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ docs/ directory not found" >> $GITHUB_STEP_SUMMARY
+        fi

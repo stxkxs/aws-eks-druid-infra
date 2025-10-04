@@ -1,0 +1,114 @@
+name: Dependency Management & Auto-Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot-auto-merge:
+    name: process dependabot updates
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v4
+    
+    - name: fetch dependabot metadata
+      id: metadata
+      uses: dependabot/fetch-metadata@v2
+      with:
+        github-token: "${{ secrets.GITHUB_TOKEN }}"
+    
+    - name: set up jdk 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'corretto'
+        cache: maven
+    
+    - name: run tests for dependency update
+      run: |
+        echo "running tests to validate dependency update..."
+        mvn clean test
+        echo "✅ tests passed with updated dependencies"
+      continue-on-error: false
+    
+    - name: auto-approve patch and minor updates
+      if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
+      run: |
+        echo "auto-approving ${{ steps.metadata.outputs.update-type }}"
+        gh pr review --approve "$PR_URL"
+        echo "✅ pull request approved"
+      env:
+        PR_URL: ${{ github.event.pull_request.html_url }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: auto-merge patch updates
+      if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+      run: |
+        echo "auto-merging patch update"
+        gh pr merge --auto --squash "$PR_URL"
+        echo "✅ merge scheduled for patch update"
+      env:
+        PR_URL: ${{ github.event.pull_request.html_url }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: add label for minor updates
+      if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
+      run: |
+        echo "adding review label for minor update"
+        gh pr edit "$PR_URL" --add-label "needs-review"
+        echo "⚠️ minor update requires manual review"
+      env:
+        PR_URL: ${{ github.event.pull_request.html_url }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: add label for major updates
+      if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+      run: |
+        echo "adding labels for major update"
+        gh pr edit "$PR_URL" --add-label "major-update,needs-review"
+        echo "⚠️ major update requires careful review"
+      env:
+        PR_URL: ${{ github.event.pull_request.html_url }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: comment on major updates
+      if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+      run: |
+        gh pr comment "$PR_URL" --body "⚠️ **major version update detected**
+        
+        this pr contains a major version update which may include breaking changes.
+        please review carefully before merging.
+        
+        **update type:** ${{ steps.metadata.outputs.update-type }}
+        **dependency:** ${{ steps.metadata.outputs.dependency-names }}
+        **version:** ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}"
+      env:
+        PR_URL: ${{ github.event.pull_request.html_url }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: dependency update summary
+      if: always()
+      run: |
+        echo "## 📦 dependency update summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| property | value |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| update type | ${{ steps.metadata.outputs.update-type }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| dependency | ${{ steps.metadata.outputs.dependency-names }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| version change | ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ steps.metadata.outputs.update-type }}" == "version-update:semver-patch" ]]; then
+          echo "✅ **patch update - auto-merge scheduled**" >> $GITHUB_STEP_SUMMARY
+        elif [[ "${{ steps.metadata.outputs.update-type }}" == "version-update:semver-minor" ]]; then
+          echo "⚠️ **minor update - manual review required**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ **major update - careful review required**" >> $GITHUB_STEP_SUMMARY
+        fi

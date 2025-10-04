@@ -1,0 +1,396 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+      release_title:
+        description: 'Release title (leave empty for default "Release vX.Y.Z")'
+        required: false
+        type: string
+      release_notes_file:
+        description: 'Release notes file in releases/ folder (e.g., v1.0.0.md)'
+        required: false
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+      draft:
+        description: 'Create as draft (for review before publishing)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  JAVA_VERSION: '21'
+  JAVA_DISTRIBUTION: 'corretto'
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+jobs:
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: get-version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          if ! echo "$VERSION" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$'; then
+            echo "Invalid version format: $VERSION"
+            echo "Expected format: X.Y.Z or X.Y.Z-suffix"
+            exit 1
+          fi
+
+      - name: Check if version exists
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          if git tag | grep -q "^v$VERSION$"; then
+            echo "Version v$VERSION already exists as a tag"
+            exit 1
+          fi
+
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    needs: validate-release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Update version in pom.xml
+        run: |
+          mvn versions:set -DnewVersion=${{ needs.validate-release.outputs.version }} -B
+          mvn versions:commit -B
+
+      - name: Build project
+        run: mvn clean package -B
+
+      - name: Run tests
+        run: mvn test -B
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            target/*.jar
+            pom.xml
+          retention-days: 7
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [ validate-release, build-and-test ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: ./release-artifacts
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+
+          # Check if a release notes file was specified
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.release_notes_file }}" ]; then
+            NOTES_FILE="releases/${{ github.event.inputs.release_notes_file }}"
+            if [ -f "$NOTES_FILE" ]; then
+              echo "Using release notes from $NOTES_FILE"
+              cp "$NOTES_FILE" RELEASE_NOTES.md
+            else
+              echo "Warning: Release notes file $NOTES_FILE not found, generating from commits"
+            fi
+          # Check if version-specific file exists automatically
+          elif [ -f "releases/v${VERSION}.md" ]; then
+            echo "Found release notes at releases/v${VERSION}.md"
+            cp "releases/v${VERSION}.md" RELEASE_NOTES.md
+          else
+            # Auto-generate from commits
+            PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+            echo "## Release v$VERSION" > RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+            echo "### 📅 Release Date: $(date +%Y-%m-%d)" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+
+            if [ -n "$PREV_TAG" ]; then
+              echo "### 🔄 Changes since $PREV_TAG" >> RELEASE_NOTES.md
+              echo "" >> RELEASE_NOTES.md
+
+              # Categorize commits
+              echo "#### ✨ Features" >> RELEASE_NOTES.md
+              git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --grep="^feat:" >> RELEASE_NOTES.md || echo "- No new features" >> RELEASE_NOTES.md
+              echo "" >> RELEASE_NOTES.md
+
+              echo "#### 🐛 Bug Fixes" >> RELEASE_NOTES.md
+              git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --grep="^fix:" >> RELEASE_NOTES.md || echo "- No bug fixes" >> RELEASE_NOTES.md
+              echo "" >> RELEASE_NOTES.md
+
+              echo "#### 📚 Documentation" >> RELEASE_NOTES.md
+              git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --grep="^docs:" >> RELEASE_NOTES.md || echo "- No documentation updates" >> RELEASE_NOTES.md
+              echo "" >> RELEASE_NOTES.md
+
+              echo "#### 🔧 Other Changes" >> RELEASE_NOTES.md
+              git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --grep -v "^feat:\|^fix:\|^docs:" >> RELEASE_NOTES.md
+              echo "" >> RELEASE_NOTES.md
+            else
+              echo "### 🎉 Initial Release" >> RELEASE_NOTES.md
+              echo "" >> RELEASE_NOTES.md
+              echo "First release of CDK Common Library" >> RELEASE_NOTES.md
+              echo "" >> RELEASE_NOTES.md
+            fi
+
+            echo "### 👥 Contributors" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+
+            if [ -n "$PREV_TAG" ]; then
+              git log $PREV_TAG..HEAD --pretty=format:"%an" | sort -u | sed 's/^/- /' >> RELEASE_NOTES.md
+            else
+              git log --pretty=format:"%an" | sort -u | sed 's/^/- /' >> RELEASE_NOTES.md
+            fi
+          fi
+
+          echo "" >> RELEASE_NOTES.md
+          echo "---" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### 📦 Assets" >> RELEASE_NOTES.md
+          echo "- **Main JAR**: \`cdk-common-$VERSION.jar\`" >> RELEASE_NOTES.md
+          echo "- **Sources**: \`cdk-common-$VERSION-sources.jar\`" >> RELEASE_NOTES.md
+          echo "- **POM**: \`cdk-common-$VERSION.pom\`" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### 🔐 Verification" >> RELEASE_NOTES.md
+          echo "All artifacts include SHA256 checksums for verification." >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### 📖 Documentation" >> RELEASE_NOTES.md
+          echo "See [USAGE.md](USAGE.md) for installation instructions." >> RELEASE_NOTES.md
+
+          # Output the release notes
+          cat RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.validate-release.outputs.version }}
+          name: ${{ github.event.inputs.release_title || format('Release v{0}', needs.validate-release.outputs.version) }}
+          body_path: RELEASE_NOTES.md
+          draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' || false }}
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true' || contains(needs.validate-release.outputs.version, '-') }}
+          # This will create the tag if it doesn't exist (when workflow_dispatch is used)
+          make_latest: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true') }}
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-release-jar:
+    name: Build Release JAR
+    runs-on: ubuntu-latest
+    needs: [ validate-release, build-and-test, create-release ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Update version
+        run: |
+          mvn versions:set -DnewVersion=${{ needs.validate-release.outputs.version }} -B
+          mvn versions:commit -B
+
+      - name: Build JAR
+        run: |
+          # Build the standard JAR
+          mvn clean package -B -DskipTests
+
+          VERSION="${{ needs.validate-release.outputs.version }}"
+
+          # Create checksums
+          cd target
+          sha256sum cdk-common-${VERSION}.jar > cdk-common-${VERSION}.jar.sha256
+
+          # Also create a sources JAR for developers
+          cd ..
+          mvn source:jar -B
+          cd target
+          sha256sum cdk-common-${VERSION}-sources.jar > cdk-common-${VERSION}-sources.jar.sha256 || true
+
+          # Create a simple POM file for dependency information
+          cd ..
+          cp pom.xml target/cdk-common-${VERSION}.pom
+
+      - name: Upload JARs to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.validate-release.outputs.version }}
+          files: |
+            target/cdk-common-${{ needs.validate-release.outputs.version }}.jar
+            target/cdk-common-${{ needs.validate-release.outputs.version }}.jar.sha256
+            target/cdk-common-${{ needs.validate-release.outputs.version }}-sources.jar
+            target/cdk-common-${{ needs.validate-release.outputs.version }}-sources.jar.sha256
+            target/cdk-common-${{ needs.validate-release.outputs.version }}.pom
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-documentation:
+    name: Update Documentation
+    runs-on: ubuntu-latest
+    needs: [ validate-release, create-release ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update CHANGELOG.md
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          DATE=$(date +%Y-%m-%d)
+
+          # Update CHANGELOG.md - convert [Unreleased] to [VERSION] - DATE
+          if grep -q "## \[Unreleased\]" CHANGELOG.md; then
+            # Replace [Unreleased] with the version and date
+            sed -i "s/## \[Unreleased\]/## [$VERSION] - $DATE/g" CHANGELOG.md
+
+            # Create a temporary file with the new unreleased section
+            echo "## [Unreleased]" > new_section.txt
+            echo "" >> new_section.txt
+            echo "### Added" >> new_section.txt
+            echo "" >> new_section.txt
+            echo "### Changed" >> new_section.txt
+            echo "" >> new_section.txt
+            echo "### Deprecated" >> new_section.txt
+            echo "" >> new_section.txt
+            echo "### Removed" >> new_section.txt
+            echo "" >> new_section.txt
+            echo "### Fixed" >> new_section.txt
+            echo "" >> new_section.txt
+            echo "### Security" >> new_section.txt
+            echo "" >> new_section.txt
+
+            # Insert the new section at the beginning after the header
+            sed -i "7r new_section.txt" CHANGELOG.md
+            rm new_section.txt
+
+            echo "Updated CHANGELOG.md for version $VERSION"
+          else
+            echo "No [Unreleased] section found in CHANGELOG.md"
+          fi
+
+      - name: Update version references
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+
+          # Update README.md version badge if it exists
+          if grep -q "version-" README.md 2>/dev/null; then
+            sed -i "s/version-[0-9.]*-/version-$VERSION-/g" README.md
+          fi
+
+          # Update any documentation with version references
+          find docs -name "*.md" -type f -exec sed -i "s/version [0-9.]*/version $VERSION/g" {} \; 2>/dev/null || true
+
+      - name: Commit changes
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+
+          # Check if changes were made
+          if git diff --quiet; then
+            echo "No documentation updates needed"
+          else
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git add -A
+            git commit -m "docs: update changelog and version to $VERSION"
+            git push || echo "Could not push changes (may need manual update)"
+          fi
+
+  notification:
+    name: Send Release Notification
+    runs-on: ubuntu-latest
+    needs: [ validate-release, create-release, build-release-jar ]
+    if: always()
+
+    steps:
+      - name: Send notification
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          CREATE_STATUS="${{ needs.create-release.result }}"
+          BUILD_STATUS="${{ needs.build-release-jar.result }}"
+          IS_DRAFT="${{ github.event.inputs.draft }}"
+          IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+
+          if [ "$CREATE_STATUS" == "success" ] && [ "$BUILD_STATUS" == "success" ]; then
+            if [ "$IS_DRAFT" == "true" ]; then
+              echo "📝 Draft release v$VERSION created successfully"
+              echo "Review at: https://github.com/${{ github.repository }}/releases"
+            elif [ "$IS_PRERELEASE" == "true" ]; then
+              echo "🔧 Pre-release v$VERSION published successfully"
+              echo "Download at: https://github.com/${{ github.repository }}/releases/tag/v$VERSION"
+            else
+              echo "✅ Release v$VERSION published successfully"
+              echo "Download at: https://github.com/${{ github.repository }}/releases/latest"
+            fi
+          else
+            echo "❌ Failed to release version v$VERSION"
+            echo "Check workflow at: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+
+          # Add notification logic here (e.g., Slack, Discord, email)
+          # Example webhook for Slack/Discord:
+          # curl -X POST ${{ secrets.WEBHOOK_URL }} \
+          #   -H 'Content-Type: application/json' \
+          #   -d '{"text":"Release v$VERSION completed with status: $STATUS"}'
